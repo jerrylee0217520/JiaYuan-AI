@@ -8,43 +8,43 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100">
-  <div class="max-w-4xl mx-auto p-6 bg-white shadow-lg mt-10 mb-10 rounded-lg">
+<body class="bg-gray-50">
+  <div class="max-w-4xl mx-auto p-8 bg-white shadow-xl mt-12 mb-12 rounded-2xl">
     <div class="text-center">
-      <h1 class="text-3xl font-bold text-gray-800">社區知識庫管理後台</h1>
-      <p class="text-gray-500 mt-2">在這裡更新的資訊，會即時同步給 AI 助理</p>
+      <h1 class="text-4xl font-extrabold text-gray-800">社區知識庫管理後台</h1>
+      <p class="text-gray-500 mt-2 text-lg">在這裡更新的資訊，會即時同步給 AI 助理</p>
     </div>
 
-    <div id="statusMessage" class="mt-4 text-center h-6"></div>
+    <div id="statusMessage" class="mt-6 text-center h-8 text-sm"></div>
 
-    <div class="mt-6">
-      <label for="knowledgeBaseInput" class="block text-lg font-medium text-gray-700">編輯區 (目前顯示為最新版本)</label>
-      <textarea id="knowledgeBaseInput" rows="15" class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-4 text-sm leading-6"></textarea>
+    <div class="mt-8 p-6 bg-blue-50 rounded-xl">
+      <label for="knowledgeBaseInput" class="block text-xl font-bold text-gray-700">編輯區 (目前顯示為最新版本)</label>
+      <textarea id="knowledgeBaseInput" rows="15" class="mt-3 block w-full rounded-xl border-blue-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-4 text-sm leading-relaxed"></textarea>
       <p class="mt-2 text-sm text-gray-500">提示：您可以使用 `#`、`**文字**`、`-` 等 Markdown 語法來美化格式。</p>
     </div>
 
     <div class="mt-6 text-right">
-      <button id="saveBtn" class="py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400">
+      <button id="saveBtn" class="py-3 px-8 border border-transparent rounded-full shadow-lg text-base font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:-translate-y-1 disabled:bg-gray-400 disabled:transform-none">
         發布新版本
       </button>
     </div>
 
-    <div class="mt-10 border-t pt-6">
-        <h2 class="text-2xl font-bold text-gray-700 mb-4">歷史版本</h2>
+    <div class="mt-12 border-t pt-8">
+        <h2 class="text-2xl font-bold text-gray-700 mb-6">歷史版本</h2>
         <div id="historyList" class="space-y-4"></div>
     </div>
 
-    <div class="mt-10 border-t pt-6">
-        <h2 class="text-2xl font-bold text-gray-700 mb-4">自定義快速建議按鈕</h2>
+    <div class="mt-12 border-t pt-8">
+        <h2 class="text-2xl font-bold text-gray-700 mb-6">自定義快速建議按鈕</h2>
         <div id="suggestionsAdmin" class="space-y-6">
-            </div>
+            <!-- Suggestion admin fields will be rendered here -->
+        </div>
         <div class="mt-6 text-right">
-            <button id="saveSuggestionsBtn" class="py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400">
+            <button id="saveSuggestionsBtn" class="py-3 px-8 border border-transparent rounded-full shadow-lg text-base font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-transform transform hover:-translate-y-1 disabled:bg-gray-400 disabled:transform-none">
                 儲存建議按鈕
             </button>
         </div>
     </div>
-
   </div>
 
   <script type="module">
@@ -112,18 +112,22 @@
     }
 
     function showStatus(message, type = 'info') {
-        statusMessage.textContent = message;
-        statusMessage.className = `mt-4 text-center h-6 ${
-            type === 'error' ? 'text-red-600' :
-            type === 'success' ? 'text-green-600' : 'text-gray-500'
+        const statusElement = document.getElementById('statusMessage');
+        statusElement.innerHTML = message;
+        statusElement.className = `mt-6 text-center h-8 text-sm flex items-center justify-center rounded-lg ${
+            type === 'error' ? 'bg-red-100 text-red-700' :
+            type === 'success' ? 'bg-green-100 text-green-700' : 'text-gray-500'
         }`;
         if (type === 'success') {
-            setTimeout(() => showStatus(''), 3000);
+            setTimeout(() => {
+                statusElement.innerHTML = '';
+                statusElement.className = `mt-6 text-center h-8`;
+            }, 3000);
         }
     }
 
     function setupRealtimeListener() {
-        showStatus("正在從資料庫載入資料...");
+        showStatus(`<i class="fas fa-spinner fa-spin mr-2"></i>正在從資料庫載入資料...`);
         saveBtn.disabled = true;
         const versionsCollectionRef = collection(db, versionsPath);
         const q = query(versionsCollectionRef, orderBy("timestamp", "desc"));
@@ -151,21 +155,21 @@
         historyList.innerHTML = '';
         versions.forEach((version, index) => {
             const card = document.createElement('div');
-            card.className = 'version-card bg-white border border-gray-200 p-4 rounded-lg flex justify-between items-center';
+            card.className = 'version-card bg-white border border-gray-200 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-sm';
             const timestamp = version.timestamp ? version.timestamp.toDate().toLocaleString('zh-TW') : 'N/A';
             const cleanContent = version.content.replace(/#+\s/g, '').replace(/:\w+:\w+:\d+]/g, '');
             const contentPreview = cleanContent.substring(0, 80).replace(/\n/g, ' ') + '...';
 
             card.innerHTML = `
-                <div>
-                    <p class="font-bold text-gray-800">
+                <div class="flex-grow">
+                    <p class="font-bold text-gray-800 text-lg">
                         版本 ${timestamp} ${index === 0 ? '<span class="text-xs font-medium bg-green-100 text-green-800 py-1 px-2 rounded-full ml-2">最新</span>' : ''}
                     </p>
                     <p class="text-sm text-gray-500 mt-1">${contentPreview}</p>
                 </div>
-                <div class="flex space-x-2">
-                    <button data-content="${escape(version.content)}" class="load-btn py-2 px-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md text-sm">載入此版本</button>
-                    <button data-id="${version.id}" class="delete-btn text-red-500 hover:text-red-700 text-xl"><i class="fas fa-trash-alt"></i></button>
+                <div class="flex space-x-2 mt-4 sm:mt-0">
+                    <button data-content="${escape(version.content)}" class="load-btn py-2 px-4 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-sm transition-colors">載入此版本</button>
+                    <button data-id="${version.id}" class="delete-btn text-red-500 hover:text-red-700 text-xl transition-colors"><i class="fas fa-trash-alt"></i></button>
                 </div>
             `;
             historyList.appendChild(card);
@@ -194,7 +198,7 @@
             showStatus("內容不能為空！", "error");
             return;
         }
-        showStatus("正在發布新版本...");
+        showStatus(`<i class="fas fa-spinner fa-spin mr-2"></i>正在發布新版本...`);
         saveBtn.disabled = true;
         try {
             await addDoc(collection(db, versionsPath), {
@@ -211,7 +215,7 @@
     }
 
     async function deleteVersion(id) {
-        showStatus("正在刪除版本...");
+        showStatus(`<i class="fas fa-spinner fa-spin mr-2"></i>正在刪除版本...`);
         try {
             await deleteDoc(doc(db, versionsPath, id));
             showStatus("版本已刪除。", 'success');
@@ -228,30 +232,30 @@
         for (let i = 0; i < SUGGESTION_BUTTONS_COUNT; i++) {
             const suggestion = suggestions[i] || { zh: { text: '', query: '' }, ja: { text: '', query: '' } };
             const section = document.createElement('div');
-            section.className = 'p-4 border rounded-lg bg-gray-50';
+            section.className = 'p-6 border-2 border-gray-200 rounded-xl bg-gray-100 shadow-inner';
             section.innerHTML = `
-                <h3 class="font-bold text-lg mb-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg mb-4 flex justify-between items-center text-gray-800">
                     <span>按鈕 ${i + 1}</span>
-                    <button class="translate-btn text-sm py-1 px-3 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors" data-index="${i}">
+                    <button class="translate-btn text-sm py-2 px-4 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors" data-index="${i}">
                         <i class="fas fa-language mr-1"></i> 將中文翻譯至日文
                     </button>
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">按鈕文字 (中文)</label>
-                        <input type="text" id="zh-text-${i}" value="${suggestion.zh.text}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text" id="zh-text-${i}" value="${suggestion.zh.text}" class="mt-1 p-3 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">發送問題 (中文)</label>
-                        <input type="text" id="zh-query-${i}" value="${suggestion.zh.query}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text" id="zh-query-${i}" value="${suggestion.zh.query}" class="mt-1 p-3 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">按鈕文字 (日文)</label>
-                        <input type="text" id="ja-text-${i}" value="${suggestion.ja.text}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text" id="ja-text-${i}" value="${suggestion.ja.text}" class="mt-1 p-3 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">發送問題 (日文)</label>
-                        <input type="text" id="ja-query-${i}" value="${suggestion.ja.query}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text" id="ja-query-${i}" value="${suggestion.ja.query}" class="mt-1 p-3 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
                 </div>
             `;
@@ -283,7 +287,7 @@
     }
 
     async function saveSuggestions() {
-        showStatus("正在儲存建議按鈕...");
+        showStatus(`<i class="fas fa-spinner fa-spin mr-2"></i>正在儲存建議按鈕...`);
         saveSuggestionsBtn.disabled = true;
         const suggestions = [];
         for (let i = 0; i < SUGGESTION_BUTTONS_COUNT; i++) {
