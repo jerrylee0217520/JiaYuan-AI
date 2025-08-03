@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>佳元松江社區生活AI助理</title>
+  <title>佳元松江社區AI生活助手</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
@@ -112,7 +112,6 @@
     }
     
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-    // FIX: Corrected the Firestore path to match the admin panel's path.
     const versionsPath = `/artifacts/${appId}/public/data/knowledge_base_versions`;
     
     // --- DOM 元素 ---
@@ -139,7 +138,8 @@
             suggestionFood: '附近有什麼好吃的？',
             suggestionFacility: '最近的生活設施？',
             suggestionTransport: '交通方便嗎？',
-            suggestionRules: '社區規定？'
+            suggestionRules: '社區規定？',
+            thinking: 'AI管家正在為您查詢...'
         },
         'ja-JP': {
             headerTitle: '佳元松江コミュニティライフAIアシスタント',
@@ -149,7 +149,8 @@
             suggestionFood: '近くに美味しいものはありますか？',
             suggestionFacility: '最寄りの生活施設は？',
             suggestionTransport: '交通の便は良いですか？',
-            suggestionRules: 'コミュニティのルールは？'
+            suggestionRules: 'コミュニティのルールは？',
+            thinking: 'AI執事が検索中です...'
         }
     };
 
@@ -226,6 +227,11 @@
         }
         chatContainer.appendChild(bubble);
         chatContainer.scrollTop = chatContainer.scrollHeight;
+        return bubble;
+    }
+
+    function updateMessage(bubble, newText) {
+        bubble.innerHTML = newText.replace(/\n/g, '<br>');
     }
 
     function toggleLoading(isLoading) {
@@ -249,6 +255,8 @@
         addMessage(userText, 'user');
         userInput.value = '';
         toggleLoading(true);
+        
+        const thinkingBubble = addMessage(translations[currentLang].thinking, 'ai');
 
         try {
             const apiKey = USER_PROVIDED_API_KEY;
@@ -295,12 +303,12 @@
 
             const result = await response.json();
             const aiResponse = result.candidates[0].content.parts[0].text;
-            addMessage(aiResponse, 'ai');
+            updateMessage(thinkingBubble, aiResponse);
 
         } catch (error) {
             console.error('AI 請求錯誤:', error);
             const errorMessage = currentLang === 'ja-JP' ? '申し訳ありませんが、エラーが発生しました。もう一度お試しください。' : '抱歉，發生錯誤，請再試一次。';
-            addMessage(errorMessage, 'ai');
+            updateMessage(thinkingBubble, errorMessage);
         } finally {
             toggleLoading(false);
         }
