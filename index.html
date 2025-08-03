@@ -10,7 +10,7 @@
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
     html, body {
       overscroll-behavior-y: contain;
-      background: #f3f4f6; /* Slightly lighter gray */
+      background: #f3f4f6;
       font-family: 'Noto Sans TC', 'Noto Sans JP', sans-serif;
     }
     #chat-container {
@@ -20,7 +20,7 @@
       opacity: 0;
       transform: translateY(20px);
       animation: fadeIn 0.5s forwards;
-      line-height: 1.6; /* Improved line spacing for readability */
+      line-height: 1.6;
     }
     @keyframes fadeIn {
       to {
@@ -84,8 +84,36 @@
   </div>
 
   <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
     // --- 設定 ---
     const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
+    
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    let firebaseConfig;
+    let useTokenAuth = false;
+
+    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        firebaseConfig = JSON.parse(__firebase_config);
+        useTokenAuth = true;
+    } else {
+        console.warn("未偵測到 Firebase 環境設定，將使用備用設定。");
+        firebaseConfig = {
+            apiKey: "AIzaSyDeRHsloR1iY0_bzpYbPzdCiBljGfck98k",
+            authDomain: "jy-2025.firebaseapp.com",
+            projectId: "jy-2025",
+            storageBucket: "jy-2025.appspot.com",
+            messagingSenderId: "640527461851",
+            appId: "1:640527461851:web:eed9f82d698275371fcbfe",
+            measurementId: "G-HVEVMTSR9L"
+        };
+    }
+    
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    // FIX: Corrected the Firestore path to match the admin panel's path.
+    const versionsPath = `/artifacts/${appId}/public/data/knowledge_base_versions`;
     
     // --- DOM 元素 ---
     const chatContainer = document.getElementById('chat-container');
@@ -96,6 +124,10 @@
     const langTwBtn = document.getElementById('lang-tw');
     const langJpBtn = document.getElementById('lang-jp');
     
+    // --- 全域變數 ---
+    let db, auth;
+    let communityKnowledgeBase = "社區資訊載入中...";
+
     // --- 語言與翻譯 ---
     let currentLang = 'zh-TW';
     const translations = {
@@ -122,28 +154,40 @@
     };
 
     // --- 核心功能 ---
-    let communityKnowledgeBase = "社區資訊載入中...";
+
+    async function initializeFirebase() {
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        if (useTokenAuth && initialAuthToken) {
+          await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+          await signInAnonymously(auth);
+        }
+        await loadKnowledgeBase();
+      } catch (e) {
+        console.error("Firebase 初始化失敗:", e);
+        addMessage("抱歉，無法連接到助理的大腦，請稍後再試。", 'ai');
+      }
+    }
 
     async function loadKnowledgeBase() {
-        // This function would fetch from a database in a real app.
-        // For this example, we'll use a static string.
-        communityKnowledgeBase = `
-          ### 佳元松江社區資訊 ###
-          **1. 垃圾處理:**
-             - 一般垃圾、廚餘、資源回收時間：每週一、二、四、五、六 晚上 8:00。
-             - 地點：社區一樓後門垃圾集中區。
-             - 大型廢棄物：請先與管理中心預約，勿隨意棄置。
-          **2. 公共設施:**
-             - 健身房：每日 06:00 - 22:00 開放，使用請穿著運動服裝與乾淨運動鞋。
-             - 會議室：採預約制，請洽管理中心登記。
-             - 頂樓花園：每日 07:00 - 21:00 開放，禁止喧嘩與烤肉。
-          **3. 管理費:**
-             - 繳交時間：每月 10 日前。
-             - 繳交方式：可至管理中心繳納現金，或使用社區 APP 線上繳費。
-          **4. 寵物規定:**
-             - 寵物於公共區域請務必繫上牽繩。
-             - 請隨手清理寵物便溺，維護社區環境。
-        `;
+        try {
+            const versionsCollectionRef = collection(db, versionsPath);
+            const q = query(versionsCollectionRef, orderBy("timestamp", "desc"), limit(1));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                communityKnowledgeBase = querySnapshot.docs[0].data().content;
+            } else {
+                communityKnowledgeBase = "目前沒有設定社區資訊。";
+            }
+        } catch (error) {
+            console.error("載入知識庫失敗:", error);
+            communityKnowledgeBase = "讀取社區資訊時發生錯誤。";
+        }
     }
 
     function updateUIForLanguage() {
@@ -303,10 +347,8 @@
     // --- 初始化 ---
     async function init() {
         updateUIForLanguage();
-        // NOTE: Firebase related initialization is removed for this version
-        // as it's not fetching the knowledge base dynamically anymore.
-        await loadKnowledgeBase(); 
         addMessage(translations[currentLang].welcomeMessage, 'ai');
+        await initializeFirebase();
     }
 
     init();
