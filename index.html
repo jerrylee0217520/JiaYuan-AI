@@ -2,76 +2,92 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>社區知識庫管理後台</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>佳元松江社區生活AI助理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
   <style>
-    body { font-family: 'Noto Sans TC', sans-serif; }
-    textarea { font-family: 'monospace'; }
-    .version-card {
-        transition: all 0.2s ease-in-out;
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+    html, body {
+      overscroll-behavior-y: contain;
+      background: #f3f4f6;
+      font-family: 'Noto Sans TC', 'Noto Sans JP', sans-serif;
     }
-    .version-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    #chat-container {
+      scroll-behavior: smooth;
     }
-    .fa-spinner {
-        animation: spin 1s linear infinite;
+    .chat-bubble {
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeIn 0.5s forwards;
+      line-height: 1.6;
+    }
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .spinner {
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
   </style>
 </head>
-<body class="bg-gray-100">
-  <div class="max-w-4xl mx-auto p-6 bg-white shadow-lg mt-10 mb-10 rounded-lg">
-    <div class="text-center">
-      <h1 class="text-3xl font-bold text-gray-800">社區知識庫管理後台</h1>
-      <p class="text-gray-500 mt-2">在這裡更新的資訊，會即時同步給 AI 助理</p>
-    </div>
-
-    <div id="statusMessage" class="mt-4 text-center h-6"></div>
-
-    <div class="mt-6">
-      <label for="knowledgeBaseInput" class="block text-lg font-medium text-gray-700">編輯區 (目前顯示為最新版本)</label>
-      <textarea id="knowledgeBaseInput" rows="15" class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-4 text-sm leading-6"></textarea>
-      <p class="mt-2 text-sm text-gray-500">提示：您可以使用 `#`、`**文字**`、`-` 等 Markdown 語法來美化格式。</p>
-    </div>
-
-    <div class="mt-6 text-right">
-      <button id="saveBtn" class="py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400">
-        發布新版本
-      </button>
-    </div>
-
-    <div class="mt-10 border-t pt-6">
-        <h2 class="text-2xl font-bold text-gray-700 mb-4">歷史版本</h2>
-        <div id="historyList" class="space-y-4"></div>
-    </div>
-
-    <div class="mt-10 border-t pt-6">
-        <h2 class="text-2xl font-bold text-gray-700 mb-4">自定義快速建議按鈕</h2>
-        <div id="suggestionsAdmin" class="space-y-6">
-            <!-- Suggestion admin fields will be rendered here -->
+<body class="antialiased">
+  <div class="max-w-md mx-auto bg-white flex flex-col h-screen">
+    <!-- Header -->
+    <div class="bg-white p-4 shadow-sm sticky top-0 z-10">
+      <div class="flex justify-between items-center">
+        <h1 id="header-title" class="text-xl font-bold text-gray-800">佳元松江社區生活AI助理</h1>
+        <div class="flex space-x-2">
+          <button id="lang-tw" class="px-3 py-1 text-sm rounded-full bg-blue-600 text-white shadow-sm transition-all duration-200">繁體中文</button>
+          <button id="lang-jp" class="px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-600 transition-all duration-200">日本語</button>
         </div>
-        <div class="mt-6 text-right">
-            <button id="saveSuggestionsBtn" class="py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400">
-                儲存建議按鈕
-            </button>
+      </div>
+    </div>
+
+    <!-- Chat Container -->
+    <div id="chat-container" class="flex-grow p-4 overflow-y-auto bg-gray-50">
+      <!-- Chat messages will be appended here -->
+    </div>
+
+    <!-- Quick Suggestions -->
+    <div id="suggestions" class="p-3 border-t bg-white">
+        <p id="suggestions-title" class="text-xs text-gray-500 mb-2 text-center">試試看問我：</p>
+        <div id="suggestion-buttons" class="grid grid-cols-2 gap-2">
+            <!-- Suggestion buttons will be dynamically loaded here -->
         </div>
     </div>
 
+    <!-- Input Area -->
+    <div class="p-3 bg-white border-t">
+      <div class="flex items-center space-x-3">
+        <input type="text" id="userInput" class="flex-grow block w-full rounded-full border-gray-200 bg-gray-100 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 p-3" placeholder="在這裡輸入您的問題...">
+        <button id="sendBtn" class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md hover:bg-blue-700 transition transform hover:scale-105">
+          <i id="sendIcon" class="fas fa-paper-plane"></i>
+          <div id="loadingSpinner" class="spinner w-6 h-6 border-2 border-white rounded-full hidden"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-gray-400 p-2 bg-white border-t">
+      © 佳元松江社區 管理中心 2025
+    </footer>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, query, orderBy, limit, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- 設定 ---
     const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
-
+    
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     let firebaseConfig;
     let useTokenAuth = false;
@@ -95,293 +111,267 @@
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     const versionsPath = `/artifacts/${appId}/public/data/knowledge_base_versions`;
     const suggestionsDocPath = `/artifacts/${appId}/public/data/community_info/suggestions_config`;
-
+    
     // --- DOM 元素 ---
-    const knowledgeBaseInput = document.getElementById('knowledgeBaseInput');
-    const saveBtn = document.getElementById('saveBtn');
-    const statusMessage = document.getElementById('statusMessage');
-    const historyList = document.getElementById('historyList');
-    const suggestionsAdmin = document.getElementById('suggestionsAdmin');
-    const saveSuggestionsBtn = document.getElementById('saveSuggestionsBtn');
-
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const sendIcon = document.getElementById('sendIcon');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const langTwBtn = document.getElementById('lang-tw');
+    const langJpBtn = document.getElementById('lang-jp');
+    const suggestionButtonsContainer = document.getElementById('suggestion-buttons');
+    
     // --- 全域變數 ---
     let db, auth;
+    let communityKnowledgeBase = "社區資訊載入中...";
+    let suggestionsConfig = [];
+
+    // --- 語言與翻譯 ---
+    let currentLang = 'zh-TW';
+    const translations = {
+        'zh-TW': {
+            headerTitle: '佳元松江社區生活AI助理',
+            welcomeMessage: '您好！我是佳元松江社區的AI管家，請問有什麼可以為您服務的嗎？您可以問我關於社區規定、公共設施或周邊生活機能的任何問題喔！',
+            inputPlaceholder: '向您的AI管家提問...',
+            suggestionsTitle: '試試看問我：',
+            thinking: 'AI管家正在為您查詢...'
+        },
+        'ja-JP': {
+            headerTitle: '佳元松江コミュニティライフAIアシスタント',
+            welcomeMessage: 'こんにちは！私は佳元松江コミュニティのAI執事です。何かお手伝いできることはありますか？コミュニティのルール、公共施設、または周辺の生活施設について何でも聞いてください！',
+            inputPlaceholder: 'AI執事に質問する...',
+            suggestionsTitle: '例えば、こんな質問ができます：',
+            thinking: 'AI執事が検索中です...'
+        }
+    };
+
+    // --- 核心功能 ---
 
     async function initializeFirebase() {
       try {
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
-        
+
         if (useTokenAuth && initialAuthToken) {
           await signInWithCustomToken(auth, initialAuthToken);
         } else {
           await signInAnonymously(auth);
         }
-        
-        setupRealtimeListener();
-        loadSuggestions();
+        await Promise.all([loadKnowledgeBase(), loadSuggestions()]);
+        updateUIForLanguage(); // Update suggestions after loading
       } catch (e) {
         console.error("Firebase 初始化失敗:", e);
-        showStatus("無法連接至伺服器。", 'error');
+        addMessage("抱歉，無法連接到助理的大腦，請稍後再試。", 'ai');
       }
     }
 
-    function showStatus(message, type = 'info') {
-        statusMessage.textContent = message;
-        statusMessage.className = `mt-4 text-center h-6 ${
-            type === 'error' ? 'text-red-600' :
-            type === 'success' ? 'text-green-600' : 'text-gray-500'
-        }`;
-        if (type === 'success') {
-            setTimeout(() => showStatus(''), 3000);
-        }
-    }
-
-    function setupRealtimeListener() {
-        showStatus("正在從資料庫載入資料...");
-        saveBtn.disabled = true;
-        const versionsCollectionRef = collection(db, versionsPath);
-        const q = query(versionsCollectionRef, orderBy("timestamp", "desc"));
-
-        onSnapshot(q, (snapshot) => {
-            const versions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            if (versions.length > 0) {
-                knowledgeBaseInput.value = versions[0].content;
-                renderHistoryList(versions);
-                showStatus("資料載入成功！", 'success');
+    async function loadKnowledgeBase() {
+        try {
+            const q = query(collection(db, versionsPath), orderBy("timestamp", "desc"), limit(1));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                communityKnowledgeBase = querySnapshot.docs[0].data().content;
             } else {
-                knowledgeBaseInput.value = `# 歡迎使用\n\n請在此輸入您的第一版社區資訊...`;
-                historyList.innerHTML = `<p class="text-gray-500 text-center">尚無歷史版本。</p>`;
-                showStatus("尚未建立知識庫，請輸入內容後發布。");
+                communityKnowledgeBase = "目前沒有設定社區資訊。";
             }
-            saveBtn.disabled = false;
-        }, (error) => {
+        } catch (error) {
             console.error("載入知識庫失敗:", error);
-            showStatus("載入知識庫失敗，請檢查網路連線或權限設定。", 'error');
-        });
-    }
-
-    function renderHistoryList(versions) {
-        historyList.innerHTML = '';
-        versions.forEach((version, index) => {
-            const card = document.createElement('div');
-            card.className = 'version-card bg-white border border-gray-200 p-4 rounded-lg flex justify-between items-center';
-            const timestamp = version.timestamp ? version.timestamp.toDate().toLocaleString('zh-TW') : 'N/A';
-            const cleanContent = version.content.replace(/#+\s/g, '').replace(/:\w+:\w+:\d+]/g, '');
-            const contentPreview = cleanContent.substring(0, 80).replace(/\n/g, ' ') + '...';
-
-            card.innerHTML = `
-                <div>
-                    <p class="font-bold text-gray-800">
-                        版本 ${timestamp} ${index === 0 ? '<span class="text-xs font-medium bg-green-100 text-green-800 py-1 px-2 rounded-full ml-2">最新</span>' : ''}
-                    </p>
-                    <p class="text-sm text-gray-500 mt-1">${contentPreview}</p>
-                </div>
-                <div class="flex space-x-2">
-                    <button data-content="${escape(version.content)}" class="load-btn py-2 px-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md text-sm">載入此版本</button>
-                    <button data-id="${version.id}" class="delete-btn text-red-500 hover:text-red-700 text-xl"><i class="fas fa-trash-alt"></i></button>
-                </div>
-            `;
-            historyList.appendChild(card);
-        });
-
-        document.querySelectorAll('.load-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                knowledgeBaseInput.value = unescape(btn.dataset.content);
-                window.scrollTo(0, 0);
-                showStatus("舊版內容已載入編輯區，修改後可發布為新版本。");
-            });
-        });
-
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (confirm('您確定要永久刪除這個歷史版本嗎？此操作無法復原。')) {
-                    deleteVersion(btn.dataset.id);
-                }
-            });
-        });
-    }
-
-    async function saveNewVersion() {
-        const content = knowledgeBaseInput.value;
-        if (!content.trim()) {
-            showStatus("內容不能為空！", "error");
-            return;
+            communityKnowledgeBase = "讀取社區資訊時發生錯誤。";
         }
-        showStatus("正在發布新版本...");
-        saveBtn.disabled = true;
-        try {
-            await addDoc(collection(db, versionsPath), {
-                content: content,
-                timestamp: serverTimestamp()
-            });
-            showStatus("新版本已成功發布！", 'success');
-        } catch (error) {
-            showStatus("發布失敗，請重試。", 'error');
-        } finally {
-            saveBtn.disabled = false;
-        }
-    }
-
-    async function deleteVersion(id) {
-        showStatus("正在刪除版本...");
-        try {
-            await deleteDoc(doc(db, versionsPath, id));
-            showStatus("版本已刪除。", 'success');
-        } catch (error) {
-            showStatus("刪除失敗，請重試。", 'error');
-        }
-    }
-    
-    // --- Suggestions Management ---
-    
-    function renderSuggestionsAdmin(suggestions = []) {
-        suggestionsAdmin.innerHTML = '';
-        for (let i = 0; i < 4; i++) {
-            const suggestion = suggestions[i] || { zh: { text: '', query: '' }, ja: { text: '', query: '' } };
-            const section = document.createElement('div');
-            section.className = 'p-4 border rounded-lg bg-gray-50';
-            section.innerHTML = `
-                <h3 class="font-bold text-lg mb-4 flex justify-between items-center">
-                    <span>按鈕 ${i + 1}</span>
-                    <button class="translate-btn text-sm py-1 px-3 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors" data-index="${i}">
-                        <i class="fas fa-language mr-1"></i> 將中文翻譯至日文
-                    </button>
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">按鈕文字 (中文)</label>
-                        <input type="text" id="zh-text-${i}" value="${suggestion.zh.text}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">發送問題 (中文)</label>
-                        <input type="text" id="zh-query-${i}" value="${suggestion.zh.query}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">按鈕文字 (日文)</label>
-                        <input type="text" id="ja-text-${i}" value="${suggestion.ja.text}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">發送問題 (日文)</label>
-                        <input type="text" id="ja-query-${i}" value="${suggestion.ja.query}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
-                    </div>
-                </div>
-            `;
-            suggestionsAdmin.appendChild(section);
-        }
-        
-        // Add event listeners to the new translate buttons
-        document.querySelectorAll('.translate-btn').forEach(btn => {
-            btn.addEventListener('click', handleTranslation);
-        });
     }
 
     async function loadSuggestions() {
-        saveSuggestionsBtn.disabled = true;
         try {
             const docRef = doc(db, suggestionsDocPath);
             const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                renderSuggestionsAdmin(docSnap.data().suggestions);
+            if (docSnap.exists() && docSnap.data().suggestions) {
+                suggestionsConfig = docSnap.data().suggestions;
             } else {
-                renderSuggestionsAdmin(); // Render with empty fields
+                // Fallback default suggestions
+                suggestionsConfig = [
+                    { zh: { text: '附近有什麼好吃的？', query: '請推薦社區附近的美食' }, ja: { text: '近くに美味しいものはありますか？', query: 'コミュニティの近くでおすすめの食べ物を教えてください' } },
+                    { zh: { text: '最近的生活設施？', query: '最近的超市或便利商店在哪' }, ja: { text: '最寄りの生活施設は？', query: '最寄りのスーパーやコンビニはどこですか' } },
+                    { zh: { text: '交通方便嗎？', query: '附近的捷運或公車站牌' }, ja: { text: '交通の便は良いですか？', query: '近くのMRT駅やバス停はどこですか' } },
+                    { zh: { text: '社區規定？', query: '垃圾車什麼時候來' }, ja: { text: 'コミュニティのルールは？', query: 'ゴミ収集の時間はいつですか' } }
+                ];
             }
         } catch (error) {
             console.error("載入建議按鈕失敗:", error);
-            showStatus("載入建議按鈕失敗。", 'error');
-        } finally {
-            saveSuggestionsBtn.disabled = false;
         }
     }
 
-    async function saveSuggestions() {
-        showStatus("正在儲存建議按鈕...");
-        saveSuggestionsBtn.disabled = true;
-        const suggestions = [];
-        for (let i = 0; i < 4; i++) {
-            suggestions.push({
-                zh: {
-                    text: document.getElementById(`zh-text-${i}`).value,
-                    query: document.getElementById(`zh-query-${i}`).value
-                },
-                ja: {
-                    text: document.getElementById(`ja-text-${i}`).value,
-                    query: document.getElementById(`ja-query-${i}`).value
-                }
-            });
+    function updateUIForLanguage() {
+        const t = translations[currentLang];
+        document.documentElement.lang = currentLang.split('-')[0];
+        document.getElementById('header-title').textContent = t.headerTitle;
+        userInput.placeholder = t.inputPlaceholder;
+        document.getElementById('suggestions-title').textContent = t.suggestionsTitle;
+
+        if (currentLang === 'zh-TW') {
+            langTwBtn.classList.replace('bg-gray-200', 'bg-blue-600');
+            langTwBtn.classList.replace('text-gray-600', 'text-white');
+            langJpBtn.classList.replace('bg-blue-600', 'bg-gray-200');
+            langJpBtn.classList.replace('text-white', 'text-gray-600');
+        } else {
+            langJpBtn.classList.replace('bg-gray-200', 'bg-blue-600');
+            langJpBtn.classList.replace('text-gray-600', 'text-white');
+            langTwBtn.classList.replace('bg-blue-600', 'bg-gray-200');
+            langTwBtn.classList.replace('text-white', 'text-gray-600');
         }
         
-        try {
-            const docRef = doc(db, suggestionsDocPath);
-            await setDoc(docRef, { suggestions });
-            showStatus("建議按鈕已成功更新！", 'success');
-        } catch (error) {
-            console.error("儲存建議按鈕失敗:", error);
-            showStatus("儲存建議按鈕失敗。", 'error');
-        } finally {
-            saveSuggestionsBtn.disabled = false;
+        // Render suggestion buttons
+        suggestionButtonsContainer.innerHTML = '';
+        const langKey = currentLang === 'zh-TW' ? 'zh' : 'ja';
+        suggestionsConfig.forEach(config => {
+            if (config[langKey] && config[langKey].text) {
+                const button = document.createElement('button');
+                button.className = "suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-3 rounded-lg transition-colors";
+                button.textContent = config[langKey].text;
+                button.onclick = () => {
+                    userInput.value = config[langKey].query || config[langKey].text;
+                    handleSendMessage();
+                };
+                suggestionButtonsContainer.appendChild(button);
+            }
+        });
+    }
+
+    function addMessage(text, sender) {
+        const bubble = document.createElement('div');
+        bubble.classList.add('chat-bubble', 'mb-4', 'max-w-[85%]', 'p-4', 'rounded-2xl', 'shadow-sm');
+        if (sender === 'user') {
+            bubble.classList.add('bg-blue-600', 'text-white', 'ml-auto', 'rounded-br-lg');
+            bubble.textContent = text;
+        } else {
+            bubble.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'rounded-bl-lg');
+            bubble.innerHTML = text.replace(/\n/g, '<br>');
+        }
+        chatContainer.appendChild(bubble);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return bubble;
+    }
+
+    function updateMessage(bubble, newText) {
+        bubble.innerHTML = newText.replace(/\n/g, '<br>');
+    }
+
+    function toggleLoading(isLoading) {
+        if (isLoading) {
+            sendIcon.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+            sendBtn.disabled = true;
+            userInput.disabled = true;
+        } else {
+            sendIcon.classList.remove('hidden');
+            loadingSpinner.classList.add('hidden');
+            sendBtn.disabled = false;
+            userInput.disabled = false;
         }
     }
 
-    // --- AI Translation Function ---
-    async function translateText(text) {
-        const apiKey = USER_PROVIDED_API_KEY || firebaseConfig.apiKey;
-        if (!text || !apiKey) return text;
+    async function handleSendMessage() {
+        const userText = userInput.value.trim();
+        if (!userText) return;
+
+        addMessage(userText, 'user');
+        userInput.value = '';
+        toggleLoading(true);
+        
+        const thinkingBubble = addMessage(translations[currentLang].thinking, 'ai');
 
         try {
-            const prompt = `Translate the following Chinese (Traditional) text to Japanese. Only return the translated text, without any explanation or extra characters. Text to translate: "${text}"`;
-            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+            const apiKey = USER_PROVIDED_API_KEY;
+            if (!apiKey) {
+                throw new Error("API 金鑰未設定。");
+            }
+
+            const languageMap = { 'zh-TW': '繁體中文', 'ja-JP': '日本語' };
+            const outputLanguage = languageMap[currentLang];
+
+            const prompt = `
+                # 你的角色
+                你就是「佳元松江社區AI管家」，一位專業、友善且樂於助人的數位管家。請以第一人稱「我」來回答問題，讓住戶感覺像在和真人管家對話。
+
+                # 核心任務
+                一位剛搬來的住戶正在向你諮詢。你的回答必須基於以下原則：
+                1.  **優先使用社區知識庫**：首先，根據下方提供的「社區專屬知識庫」來回答。這是最準確的資訊。
+                2.  **提供在地生活資訊**：如果問題與知識庫無關，再根據社區的地理位置「台灣台北市中山區松江路252巷10號」，提供周邊生活資訊。
+                3.  **使用指定語言**：所有回答都必須使用「${outputLanguage}」。
+
+                # 社區專屬知識庫:
+                ${communityKnowledgeBase}
+
+                # 住戶的問題:
+                「${userText}」
+            `;
+
+            const payload = {
+              contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+            
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`API 請求失敗: ${response.status}. ${errorBody}`);
+            }
+
             const result = await response.json();
-            return result.candidates[0].content.parts[0].text.trim();
+            const aiResponse = result.candidates[0].content.parts[0].text;
+            updateMessage(thinkingBubble, aiResponse);
+
         } catch (error) {
-            console.error('Translation failed:', error);
-            showStatus(`翻譯失敗: ${error.message}`, 'error');
-            return ''; // Return empty on error to avoid filling with wrong text
-        }
-    }
-
-    async function handleTranslation(event) {
-        const btn = event.currentTarget;
-        const index = btn.dataset.index;
-        
-        const zhTextInput = document.getElementById(`zh-text-${index}`);
-        const zhQueryInput = document.getElementById(`zh-query-${index}`);
-        const jaTextInput = document.getElementById(`ja-text-${index}`);
-        const jaQueryInput = document.getElementById(`ja-query-${index}`);
-
-        const originalButtonHTML = btn.innerHTML;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> 翻譯中...`;
-        btn.disabled = true;
-
-        try {
-            const [translatedText, translatedQuery] = await Promise.all([
-                translateText(zhTextInput.value),
-                translateText(zhQueryInput.value)
-            ]);
-            
-            jaTextInput.value = translatedText;
-            jaQueryInput.value = translatedQuery;
-            showStatus('翻譯完成！', 'success');
-        } catch (error) {
-            // Error is already shown in translateText function
+            console.error('AI 請求錯誤:', error);
+            const errorMessage = currentLang === 'ja-JP' ? '申し訳ありませんが、エラーが発生しました。もう一度お試しください。' : '抱歉，發生錯誤，請再試一次。';
+            updateMessage(thinkingBubble, errorMessage);
         } finally {
-            btn.innerHTML = originalButtonHTML;
-            btn.disabled = false;
+            toggleLoading(false);
         }
     }
 
-    saveBtn.addEventListener('click', saveNewVersion);
-    saveSuggestionsBtn.addEventListener('click', saveSuggestions);
-    initializeFirebase();
+    // --- 事件監聽 ---
+    sendBtn.addEventListener('click', handleSendMessage);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSendMessage();
+        }
+    });
+
+    langTwBtn.addEventListener('click', () => {
+        if (currentLang !== 'zh-TW') {
+            currentLang = 'zh-TW';
+            updateUIForLanguage();
+            chatContainer.innerHTML = '';
+            addMessage(translations[currentLang].welcomeMessage, 'ai');
+        }
+    });
+
+    langJpBtn.addEventListener('click', () => {
+        if (currentLang !== 'ja-JP') {
+            currentLang = 'ja-JP';
+            updateUIForLanguage();
+            chatContainer.innerHTML = '';
+            addMessage(translations[currentLang].welcomeMessage, 'ai');
+        }
+    });
+    
+    // --- 初始化 ---
+    async function init() {
+        updateUIForLanguage(); // Initial UI text
+        addMessage(translations[currentLang].welcomeMessage, 'ai');
+        await initializeFirebase();
+    }
+
+    init();
+
   </script>
 </body>
 </html>
