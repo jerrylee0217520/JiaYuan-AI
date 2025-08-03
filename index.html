@@ -61,7 +61,7 @@
             <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="food">附近有什麼好吃的？</button>
             <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="facility">最近的生活設施？</button>
             <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="transport">交通方便嗎？</button>
-            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="park">附近有公園嗎？</button>
+            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="rules">社區規定？</button>
         </div>
     </div>
 
@@ -83,8 +83,36 @@
   </div>
 
   <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
     // --- 設定 ---
     const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
+    
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    let firebaseConfig;
+    let useTokenAuth = false;
+
+    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        firebaseConfig = JSON.parse(__firebase_config);
+        useTokenAuth = true;
+    } else {
+        console.warn("未偵測到 Firebase 環境設定，將使用備用設定。");
+        firebaseConfig = {
+            apiKey: "AIzaSyDeRHsloR1iY0_bzpYbPzdCiBljGfck98k",
+            authDomain: "jy-2025.firebaseapp.com",
+            projectId: "jy-2025",
+            storageBucket: "jy-2025.appspot.com",
+            messagingSenderId: "640527461851",
+            appId: "1:640527461851:web:eed9f82d698275371fcbfe",
+            measurementId: "G-HVEVMTSR9L"
+        };
+    }
+    
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const knowledgeBasePath = `/artifacts/${appId}/public/data/community_info`;
+    const knowledgeBaseDocId = 'knowledge_base';
     
     // --- DOM 元素 ---
     const chatContainer = document.getElementById('chat-container');
@@ -95,32 +123,69 @@
     const langTwBtn = document.getElementById('lang-tw');
     const langJpBtn = document.getElementById('lang-jp');
     
+    // --- 全域變數 ---
+    let db, auth, knowledgeBaseDocRef;
+    let communityKnowledgeBase = "社區資訊載入中..."; // Default value
+
     // --- 語言與翻譯 ---
     let currentLang = 'zh-TW';
     const translations = {
         'zh-TW': {
             headerTitle: '佳元松江社區生活AI助理',
-            welcomeMessage: '您好！我是您的社區生活助理，請問有什麼可以為您服務的嗎？例如，您可以問我附近有什麼推薦的餐廳或設施。',
+            welcomeMessage: '您好！我是您的社區生活助理，請問有什麼可以為您服務的嗎？例如，您可以問我垃圾車時間，或是附近有什麼推薦的餐廳。',
             inputPlaceholder: '在這裡輸入您的問題...',
             suggestionsTitle: '試試看問我：',
             suggestionFood: '附近有什麼好吃的？',
             suggestionFacility: '最近的生活設施？',
             suggestionTransport: '交通方便嗎？',
-            suggestionPark: '附近有公園嗎？'
+            suggestionRules: '社區規定？'
         },
         'ja-JP': {
             headerTitle: '佳元松江コミュニティライフAIアシスタント',
-            welcomeMessage: 'こんにちは！私はあなたのコミュニティライフアシスタントです。何かお手伝いできることはありますか？例えば、近くのおすすめのレストランや施設について尋ねることができます。',
+            welcomeMessage: 'こんにちは！私はあなたのコミュニティライフアシスタントです。何かお手伝いできることはありますか？例えば、ゴミ収集の時間や、近くのおすすめのレストランについて尋ねることができます。',
             inputPlaceholder: 'ここに質問を入力してください...',
             suggestionsTitle: '例えば、こんな質問ができます：',
             suggestionFood: '近くに美味しいものはありますか？',
             suggestionFacility: '最寄りの生活施設は？',
             suggestionTransport: '交通の便は良いですか？',
-            suggestionPark: '近くに公園はありますか？'
+            suggestionRules: 'コミュニティのルールは？'
         }
     };
 
     // --- 核心功能 ---
+
+    async function initializeFirebase() {
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        knowledgeBaseDocRef = doc(db, knowledgeBasePath, knowledgeBaseDocId);
+
+        if (useTokenAuth && initialAuthToken) {
+          await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+          await signInAnonymously(auth);
+        }
+        await loadKnowledgeBase(); // Load knowledge after auth
+      } catch (e) {
+        console.error("Firebase 初始化失敗:", e);
+        addMessage("抱歉，無法連接到助理的大腦，請稍後再試。", 'ai');
+      }
+    }
+
+    async function loadKnowledgeBase() {
+        try {
+            const docSnap = await getDoc(knowledgeBaseDocRef);
+            if (docSnap.exists()) {
+                communityKnowledgeBase = docSnap.data().content;
+            } else {
+                communityKnowledgeBase = "目前沒有設定社區資訊。";
+            }
+        } catch (error) {
+            console.error("載入知識庫失敗:", error);
+            communityKnowledgeBase = "讀取社區資訊時發生錯誤。";
+        }
+    }
 
     function updateUIForLanguage() {
         const t = translations[currentLang];
@@ -131,7 +196,7 @@
         document.querySelector('[data-suggestion-key="food"]').textContent = t.suggestionFood;
         document.querySelector('[data-suggestion-key="facility"]').textContent = t.suggestionFacility;
         document.querySelector('[data-suggestion-key="transport"]').textContent = t.suggestionTransport;
-        document.querySelector('[data-suggestion-key="park"]').textContent = t.suggestionPark;
+        document.querySelector('[data-suggestion-key="rules"]').textContent = t.suggestionRules;
 
         if (currentLang === 'zh-TW') {
             langTwBtn.classList.replace('bg-gray-300', 'bg-blue-500');
@@ -154,7 +219,7 @@
             bubble.textContent = text;
         } else {
             bubble.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto');
-            bubble.innerHTML = text.replace(/\n/g, '<br>'); // Preserve line breaks
+            bubble.innerHTML = text.replace(/\n/g, '<br>');
         }
         chatContainer.appendChild(bubble);
         chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -191,13 +256,20 @@
             const languageMap = { 'zh-TW': '繁體中文', 'ja-JP': '日本語' };
             const outputLanguage = languageMap[currentLang];
 
-            // Crucial context for the AI - Updated Address
             const prompt = `
-                你是一位友善且樂於助人的社區生活助理。
-                一位剛搬來的住戶（可能是日本人）正在向你諮詢社區周邊的生活資訊。
-                我們的社區位於「台灣台北市中山區松江路252巷10號」。請務必根據這個實際地點來提供建議。
-                請用「${outputLanguage}」來回答以下問題，語氣要親切自然。
-                問題是：「${userText}」
+                你是一位友善且樂於助人的「佳元松江社區」生活助理。
+                一位剛搬來的住戶正在向你諮詢。
+                
+                # 你的主要職責:
+                1.  優先根據下方提供的「社區專屬知識庫」來回答問題。
+                2.  如果問題與知識庫無關，再根據社區的地理位置「台灣台北市中山區松江路252巷10號」，提供周邊生活資訊。
+                3.  所有回答都必須使用「${outputLanguage}」，語氣要親切自然。
+
+                # 社區專屬知識庫:
+                ${communityKnowledgeBase}
+
+                # 住戶的問題:
+                「${userText}」
             `;
 
             const payload = {
@@ -242,7 +314,7 @@
         if (currentLang !== 'zh-TW') {
             currentLang = 'zh-TW';
             updateUIForLanguage();
-            chatContainer.innerHTML = ''; // Clear chat
+            chatContainer.innerHTML = '';
             addMessage(translations[currentLang].welcomeMessage, 'ai');
         }
     });
@@ -251,21 +323,31 @@
         if (currentLang !== 'ja-JP') {
             currentLang = 'ja-JP';
             updateUIForLanguage();
-            chatContainer.innerHTML = ''; // Clear chat
+            chatContainer.innerHTML = '';
             addMessage(translations[currentLang].welcomeMessage, 'ai');
         }
     });
     
     document.querySelectorAll('.suggestion-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            userInput.value = btn.textContent;
+            const key = btn.dataset.suggestionKey;
+            if (key === 'rules') {
+                userInput.value = currentLang === 'ja-JP' ? 'ゴミ収集の時間はいつですか？' : '垃圾車什麼時候來？';
+            } else {
+                userInput.value = btn.textContent;
+            }
             handleSendMessage();
         });
     });
 
     // --- 初始化 ---
-    updateUIForLanguage();
-    addMessage(translations[currentLang].welcomeMessage, 'ai');
+    async function init() {
+        updateUIForLanguage();
+        addMessage(translations[currentLang].welcomeMessage, 'ai');
+        await initializeFirebase();
+    }
+
+    init();
 
   </script>
 </body>
