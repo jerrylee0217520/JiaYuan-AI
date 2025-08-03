@@ -75,7 +75,6 @@
     }
     
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-    // FIX: Corrected the Firestore collection path to have an odd number of segments.
     const versionsPath = `/artifacts/${appId}/public/data/knowledge_base_versions`;
 
     // --- DOM 元素 ---
@@ -150,7 +149,9 @@
             card.className = 'version-card bg-white border border-gray-200 p-4 rounded-lg flex justify-between items-center';
             
             const timestamp = version.timestamp ? version.timestamp.toDate().toLocaleString('zh-TW') : 'N/A';
-            const contentPreview = version.content.substring(0, 80).replace(/\n/g, ' ') + '...';
+            
+            const cleanContent = version.content.replace(/#+\s/g, '').replace(/:\w+:\w+:\d+]/g, '');
+            const contentPreview = cleanContent.substring(0, 80).replace(/\n/g, ' ') + '...';
 
             card.innerHTML = `
                 <div>
