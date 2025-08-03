@@ -6,23 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
-  <style>
-    body { font-family: 'Noto Sans TC', sans-serif; }
-    textarea { font-family: 'monospace'; }
-    .version-card {
-        transition: all 0.2s ease-in-out;
-    }
-    .version-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
-    .fa-spinner {
-        animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-100">
   <div class="max-w-4xl mx-auto p-6 bg-white shadow-lg mt-10 mb-10 rounded-lg">
@@ -53,8 +37,7 @@
     <div class="mt-10 border-t pt-6">
         <h2 class="text-2xl font-bold text-gray-700 mb-4">自定義快速建議按鈕</h2>
         <div id="suggestionsAdmin" class="space-y-6">
-            <!-- Suggestion admin fields will be rendered here -->
-        </div>
+            </div>
         <div class="mt-6 text-right">
             <button id="saveSuggestionsBtn" class="py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400">
                 儲存建議按鈕
@@ -71,6 +54,7 @@
 
     // --- 設定 ---
     const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
+    const SUGGESTION_BUTTONS_COUNT = 4; // 可在此調整建議按鈕的數量
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     let firebaseConfig;
@@ -219,6 +203,7 @@
             });
             showStatus("新版本已成功發布！", 'success');
         } catch (error) {
+            console.error("發布失敗:", error);
             showStatus("發布失敗，請重試。", 'error');
         } finally {
             saveBtn.disabled = false;
@@ -231,6 +216,7 @@
             await deleteDoc(doc(db, versionsPath, id));
             showStatus("版本已刪除。", 'success');
         } catch (error) {
+            console.error("刪除失敗:", error);
             showStatus("刪除失敗，請重試。", 'error');
         }
     }
@@ -239,7 +225,7 @@
     
     function renderSuggestionsAdmin(suggestions = []) {
         suggestionsAdmin.innerHTML = '';
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < SUGGESTION_BUTTONS_COUNT; i++) {
             const suggestion = suggestions[i] || { zh: { text: '', query: '' }, ja: { text: '', query: '' } };
             const section = document.createElement('div');
             section.className = 'p-4 border rounded-lg bg-gray-50';
@@ -300,7 +286,7 @@
         showStatus("正在儲存建議按鈕...");
         saveSuggestionsBtn.disabled = true;
         const suggestions = [];
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < SUGGESTION_BUTTONS_COUNT; i++) {
             suggestions.push({
                 zh: {
                     text: document.getElementById(`zh-text-${i}`).value,
@@ -339,13 +325,16 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`API request failed: ${response.status}. ${errorBody}`);
+            }
             const result = await response.json();
             return result.candidates[0].content.parts[0].text.trim();
         } catch (error) {
             console.error('Translation failed:', error);
             showStatus(`翻譯失敗: ${error.message}`, 'error');
-            return ''; // Return empty on error to avoid filling with wrong text
+            return '';
         }
     }
 
