@@ -10,7 +10,7 @@
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
     html, body {
       overscroll-behavior-y: contain;
-      background: #f0f4f8;
+      background: #f3f4f6; /* Slightly lighter gray */
       font-family: 'Noto Sans TC', 'Noto Sans JP', sans-serif;
     }
     #chat-container {
@@ -20,6 +20,7 @@
       opacity: 0;
       transform: translateY(20px);
       animation: fadeIn 0.5s forwards;
+      line-height: 1.6; /* Improved line spacing for readability */
     }
     @keyframes fadeIn {
       to {
@@ -39,37 +40,37 @@
 <body class="antialiased">
   <div class="max-w-md mx-auto bg-white flex flex-col h-screen">
     <!-- Header -->
-    <div class="bg-white p-4 shadow-md sticky top-0 z-10">
+    <div class="bg-white p-4 shadow-sm sticky top-0 z-10">
       <div class="flex justify-between items-center">
         <h1 id="header-title" class="text-xl font-bold text-gray-800">佳元松江社區生活AI助理</h1>
         <div class="flex space-x-2">
-          <button id="lang-tw" class="px-3 py-1 text-sm rounded-full bg-blue-500 text-white shadow">繁體中文</button>
-          <button id="lang-jp" class="px-3 py-1 text-sm rounded-full bg-gray-300 text-gray-700">日本語</button>
+          <button id="lang-tw" class="px-3 py-1 text-sm rounded-full bg-blue-600 text-white shadow-sm transition-all duration-200">繁體中文</button>
+          <button id="lang-jp" class="px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-600 transition-all duration-200">日本語</button>
         </div>
       </div>
     </div>
 
     <!-- Chat Container -->
-    <div id="chat-container" class="flex-grow p-4 overflow-y-auto">
+    <div id="chat-container" class="flex-grow p-4 overflow-y-auto bg-gray-50">
       <!-- Chat messages will be appended here -->
     </div>
 
     <!-- Quick Suggestions -->
-    <div id="suggestions" class="p-4 border-t">
-        <p id="suggestions-title" class="text-sm text-gray-500 mb-2 text-center">試試看問我：</p>
+    <div id="suggestions" class="p-3 border-t bg-white">
+        <p id="suggestions-title" class="text-xs text-gray-500 mb-2 text-center">試試看問我：</p>
         <div class="grid grid-cols-2 gap-2">
-            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="food">附近有什麼好吃的？</button>
-            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="facility">最近的生活設施？</button>
-            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="transport">交通方便嗎？</button>
-            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg" data-suggestion-key="rules">社區規定？</button>
+            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-3 rounded-lg transition-colors" data-suggestion-key="food">附近有什麼好吃的？</button>
+            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-3 rounded-lg transition-colors" data-suggestion-key="facility">最近的生活設施？</button>
+            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-3 rounded-lg transition-colors" data-suggestion-key="transport">交通方便嗎？</button>
+            <button class="suggestion-btn text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-3 rounded-lg transition-colors" data-suggestion-key="rules">社區規定？</button>
         </div>
     </div>
 
     <!-- Input Area -->
-    <div class="p-4 bg-white border-t">
-      <div class="flex items-center space-x-2">
-        <input type="text" id="userInput" class="flex-grow block w-full rounded-full border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 p-3" placeholder="在這裡輸入您的問題...">
-        <button id="sendBtn" class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md hover:bg-blue-700 transition">
+    <div class="p-3 bg-white border-t">
+      <div class="flex items-center space-x-3">
+        <input type="text" id="userInput" class="flex-grow block w-full rounded-full border-gray-200 bg-gray-100 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 p-3" placeholder="在這裡輸入您的問題...">
+        <button id="sendBtn" class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md hover:bg-blue-700 transition transform hover:scale-105">
           <i id="sendIcon" class="fas fa-paper-plane"></i>
           <div id="loadingSpinner" class="spinner w-6 h-6 border-2 border-white rounded-full hidden"></div>
         </button>
@@ -83,36 +84,8 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
     // --- 設定 ---
     const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
-    
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    let firebaseConfig;
-    let useTokenAuth = false;
-
-    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-        firebaseConfig = JSON.parse(__firebase_config);
-        useTokenAuth = true;
-    } else {
-        console.warn("未偵測到 Firebase 環境設定，將使用備用設定。");
-        firebaseConfig = {
-            apiKey: "AIzaSyDeRHsloR1iY0_bzpYbPzdCiBljGfck98k",
-            authDomain: "jy-2025.firebaseapp.com",
-            projectId: "jy-2025",
-            storageBucket: "jy-2025.appspot.com",
-            messagingSenderId: "640527461851",
-            appId: "1:640527461851:web:eed9f82d698275371fcbfe",
-            measurementId: "G-HVEVMTSR9L"
-        };
-    }
-    
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-    const knowledgeBasePath = `/artifacts/${appId}/public/data/community_info`;
-    const knowledgeBaseDocId = 'knowledge_base';
     
     // --- DOM 元素 ---
     const chatContainer = document.getElementById('chat-container');
@@ -123,17 +96,13 @@
     const langTwBtn = document.getElementById('lang-tw');
     const langJpBtn = document.getElementById('lang-jp');
     
-    // --- 全域變數 ---
-    let db, auth, knowledgeBaseDocRef;
-    let communityKnowledgeBase = "社區資訊載入中..."; // Default value
-
     // --- 語言與翻譯 ---
     let currentLang = 'zh-TW';
     const translations = {
         'zh-TW': {
             headerTitle: '佳元松江社區生活AI助理',
-            welcomeMessage: '您好！我是您的社區生活助理，請問有什麼可以為您服務的嗎？例如，您可以問我垃圾車時間，或是附近有什麼推薦的餐廳。',
-            inputPlaceholder: '在這裡輸入您的問題...',
+            welcomeMessage: '您好！我是佳元松江社區的AI管家，請問有什麼可以為您服務的嗎？您可以問我關於社區規定、公共設施或周邊生活機能的任何問題喔！',
+            inputPlaceholder: '向您的AI管家提問...',
             suggestionsTitle: '試試看問我：',
             suggestionFood: '附近有什麼好吃的？',
             suggestionFacility: '最近的生活設施？',
@@ -142,8 +111,8 @@
         },
         'ja-JP': {
             headerTitle: '佳元松江コミュニティライフAIアシスタント',
-            welcomeMessage: 'こんにちは！私はあなたのコミュニティライフアシスタントです。何かお手伝いできることはありますか？例えば、ゴミ収集の時間や、近くのおすすめのレストランについて尋ねることができます。',
-            inputPlaceholder: 'ここに質問を入力してください...',
+            welcomeMessage: 'こんにちは！私は佳元松江コミュニティのAI執事です。何かお手伝いできることはありますか？コミュニティのルール、公共施設、または周辺の生活施設について何でも聞いてください！',
+            inputPlaceholder: 'AI執事に質問する...',
             suggestionsTitle: '例えば、こんな質問ができます：',
             suggestionFood: '近くに美味しいものはありますか？',
             suggestionFacility: '最寄りの生活施設は？',
@@ -153,38 +122,28 @@
     };
 
     // --- 核心功能 ---
-
-    async function initializeFirebase() {
-      try {
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        knowledgeBaseDocRef = doc(db, knowledgeBasePath, knowledgeBaseDocId);
-
-        if (useTokenAuth && initialAuthToken) {
-          await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-          await signInAnonymously(auth);
-        }
-        await loadKnowledgeBase(); // Load knowledge after auth
-      } catch (e) {
-        console.error("Firebase 初始化失敗:", e);
-        addMessage("抱歉，無法連接到助理的大腦，請稍後再試。", 'ai');
-      }
-    }
+    let communityKnowledgeBase = "社區資訊載入中...";
 
     async function loadKnowledgeBase() {
-        try {
-            const docSnap = await getDoc(knowledgeBaseDocRef);
-            if (docSnap.exists()) {
-                communityKnowledgeBase = docSnap.data().content;
-            } else {
-                communityKnowledgeBase = "目前沒有設定社區資訊。";
-            }
-        } catch (error) {
-            console.error("載入知識庫失敗:", error);
-            communityKnowledgeBase = "讀取社區資訊時發生錯誤。";
-        }
+        // This function would fetch from a database in a real app.
+        // For this example, we'll use a static string.
+        communityKnowledgeBase = `
+          ### 佳元松江社區資訊 ###
+          **1. 垃圾處理:**
+             - 一般垃圾、廚餘、資源回收時間：每週一、二、四、五、六 晚上 8:00。
+             - 地點：社區一樓後門垃圾集中區。
+             - 大型廢棄物：請先與管理中心預約，勿隨意棄置。
+          **2. 公共設施:**
+             - 健身房：每日 06:00 - 22:00 開放，使用請穿著運動服裝與乾淨運動鞋。
+             - 會議室：採預約制，請洽管理中心登記。
+             - 頂樓花園：每日 07:00 - 21:00 開放，禁止喧嘩與烤肉。
+          **3. 管理費:**
+             - 繳交時間：每月 10 日前。
+             - 繳交方式：可至管理中心繳納現金，或使用社區 APP 線上繳費。
+          **4. 寵物規定:**
+             - 寵物於公共區域請務必繫上牽繩。
+             - 請隨手清理寵物便溺，維護社區環境。
+        `;
     }
 
     function updateUIForLanguage() {
@@ -199,26 +158,26 @@
         document.querySelector('[data-suggestion-key="rules"]').textContent = t.suggestionRules;
 
         if (currentLang === 'zh-TW') {
-            langTwBtn.classList.replace('bg-gray-300', 'bg-blue-500');
-            langTwBtn.classList.replace('text-gray-700', 'text-white');
-            langJpBtn.classList.replace('bg-blue-500', 'bg-gray-300');
-            langJpBtn.classList.replace('text-white', 'text-gray-700');
+            langTwBtn.classList.replace('bg-gray-200', 'bg-blue-600');
+            langTwBtn.classList.replace('text-gray-600', 'text-white');
+            langJpBtn.classList.replace('bg-blue-600', 'bg-gray-200');
+            langJpBtn.classList.replace('text-white', 'text-gray-600');
         } else {
-            langJpBtn.classList.replace('bg-gray-300', 'bg-blue-500');
-            langJpBtn.classList.replace('text-gray-700', 'text-white');
-            langTwBtn.classList.replace('bg-blue-500', 'bg-gray-300');
-            langTwBtn.classList.replace('text-white', 'text-gray-700');
+            langJpBtn.classList.replace('bg-gray-200', 'bg-blue-600');
+            langJpBtn.classList.replace('text-gray-600', 'text-white');
+            langTwBtn.classList.replace('bg-blue-600', 'bg-gray-200');
+            langTwBtn.classList.replace('text-white', 'text-gray-600');
         }
     }
 
     function addMessage(text, sender) {
         const bubble = document.createElement('div');
-        bubble.classList.add('chat-bubble', 'mb-4', 'max-w-xs', 'p-3', 'rounded-lg');
+        bubble.classList.add('chat-bubble', 'mb-4', 'max-w-[85%]', 'p-4', 'rounded-2xl', 'shadow-sm');
         if (sender === 'user') {
-            bubble.classList.add('bg-blue-500', 'text-white', 'ml-auto');
+            bubble.classList.add('bg-blue-600', 'text-white', 'ml-auto', 'rounded-br-lg');
             bubble.textContent = text;
         } else {
-            bubble.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto');
+            bubble.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'rounded-bl-lg');
             bubble.innerHTML = text.replace(/\n/g, '<br>');
         }
         chatContainer.appendChild(bubble);
@@ -257,13 +216,14 @@
             const outputLanguage = languageMap[currentLang];
 
             const prompt = `
-                你是一位友善且樂於助人的「佳元松江社區」生活助理。
-                一位剛搬來的住戶正在向你諮詢。
-                
-                # 你的主要職責:
-                1.  優先根據下方提供的「社區專屬知識庫」來回答問題。
-                2.  如果問題與知識庫無關，再根據社區的地理位置「台灣台北市中山區松江路252巷10號」，提供周邊生活資訊。
-                3.  所有回答都必須使用「${outputLanguage}」，語氣要親切自然。
+                # 你的角色
+                你就是「佳元松江社區AI管家」，一位專業、友善且樂於助人的數位管家。請以第一人稱「我」來回答問題，讓住戶感覺像在和真人管家對話。
+
+                # 核心任務
+                一位剛搬來的住戶正在向你諮詢。你的回答必須基於以下原則：
+                1.  **優先使用社區知識庫**：首先，根據下方提供的「社區專屬知識庫」來回答。這是最準確的資訊。
+                2.  **提供在地生活資訊**：如果問題與知識庫無關，再根據社區的地理位置「台灣台北市中山區松江路252巷10號」，提供周邊生活資訊。
+                3.  **使用指定語言**：所有回答都必須使用「${outputLanguage}」。
 
                 # 社區專屬知識庫:
                 ${communityKnowledgeBase}
@@ -343,8 +303,10 @@
     // --- 初始化 ---
     async function init() {
         updateUIForLanguage();
+        // NOTE: Firebase related initialization is removed for this version
+        // as it's not fetching the knowledge base dynamically anymore.
+        await loadKnowledgeBase(); 
         addMessage(translations[currentLang].welcomeMessage, 'ai');
-        await initializeFirebase();
     }
 
     init();
