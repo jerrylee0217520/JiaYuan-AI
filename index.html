@@ -6,40 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
-    html, body {
-      overscroll-behavior-y: contain;
-      background: #f3f4f6;
-      font-family: 'Noto Sans TC', 'Noto Sans JP', sans-serif;
-    }
-    #chat-container {
-      scroll-behavior: smooth;
-    }
-    .chat-bubble {
-      opacity: 0;
-      transform: translateY(20px);
-      animation: fadeIn 0.5s forwards;
-      line-height: 1.6;
-    }
-    @keyframes fadeIn {
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    .spinner {
-      border-top-color: transparent;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body class="antialiased">
   <div class="max-w-md mx-auto bg-white flex flex-col h-screen">
-    <!-- Header -->
     <div class="bg-white p-4 shadow-sm sticky top-0 z-10">
       <div class="flex justify-between items-center">
         <h1 id="header-title" class="text-xl font-bold text-gray-800">佳元松江社區生活AI助理</h1>
@@ -50,20 +20,15 @@
       </div>
     </div>
 
-    <!-- Chat Container -->
     <div id="chat-container" class="flex-grow p-4 overflow-y-auto bg-gray-50">
-      <!-- Chat messages will be appended here -->
-    </div>
+      </div>
 
-    <!-- Quick Suggestions -->
     <div id="suggestions" class="p-3 border-t bg-white">
         <p id="suggestions-title" class="text-xs text-gray-500 mb-2 text-center">試試看問我：</p>
         <div id="suggestion-buttons" class="grid grid-cols-2 gap-2">
-            <!-- Suggestion buttons will be dynamically loaded here -->
-        </div>
+            </div>
     </div>
 
-    <!-- Input Area -->
     <div class="p-3 bg-white border-t">
       <div class="flex items-center space-x-3">
         <input type="text" id="userInput" class="flex-grow block w-full rounded-full border-gray-200 bg-gray-100 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 p-3" placeholder="在這裡輸入您的問題...">
@@ -74,9 +39,8 @@
       </div>
     </div>
 
-    <!-- Footer -->
     <footer class="text-center text-xs text-gray-400 p-2 bg-white border-t">
-      © 佳元松江社區 管理中心 2025
+      Powered by Magic Jerry
     </footer>
   </div>
 
@@ -132,17 +96,17 @@
     const translations = {
         'zh-TW': {
             headerTitle: '佳元松江社區生活AI助理',
-            welcomeMessage: '您好！我是佳元松江社區的AI管家，請問有什麼可以為您服務的嗎？您可以問我關於社區規定、公共設施或周邊生活機能的任何問題喔！',
-            inputPlaceholder: '向您的AI管家提問...',
+            welcomeMessage: '您好！我是佳元松江社區的AI經理助手，請問有什麼可以為您服務的嗎？您可以問我關於社區規定、公共設施或周邊生活機能的任何問題喔！',
+            inputPlaceholder: '向您的AI經理助手提問...',
             suggestionsTitle: '試試看問我：',
-            thinking: 'AI管家正在為您查詢...'
+            thinking: 'AI經理助手正在為您查詢...'
         },
         'ja-JP': {
             headerTitle: '佳元松江コミュニティライフAIアシスタント',
-            welcomeMessage: 'こんにちは！私は佳元松江コミュニティのAI執事です。何かお手伝いできることはありますか？コミュニティのルール、公共施設、または周辺の生活施設について何でも聞いてください！',
-            inputPlaceholder: 'AI執事に質問する...',
+            welcomeMessage: 'こんにちは！私は佳元松江コミュニティのAIアシスタントです。何かお手伝いできることはありますか？コミュニティのルール、公共施設、または周辺の生活施設について何でも聞いてください！',
+            inputPlaceholder: 'AIアシスタントに質問する...',
             suggestionsTitle: '例えば、こんな質問ができます：',
-            thinking: 'AI執事が検索中です...'
+            thinking: 'AIアシスタントが検索中です...'
         }
     };
 
@@ -292,13 +256,14 @@
 
             const prompt = `
                 # 你的角色
-                你就是「佳元松江社區AI管家」，一位專業、友善且樂於助人的數位管家。請以第一人稱「我」來回答問題，讓住戶感覺像在和真人管家對話。
+                你就是「佳元松江社區經理助手」，一位專業、有條理且樂於提供支援的數位經理助手。請以第一人稱「我」來回答問題，讓住戶感覺像在和管理中心的經理助理對話。
 
                 # 核心任務
-                一位剛搬來的住戶正在向你諮詢。你的回答必須基於以下原則：
-                1.  **優先使用社區知識庫**：首先，根據下方提供的「社區專屬知識庫」來回答。這是最準確的資訊。
+                一位剛搬來的住戶或現有住戶正在向你諮詢。你的回答必須基於以下原則：
+                1.  **優先使用社區知識庫**：首先，根據下方提供的「社區專屬知識庫」來回答。這是最準確的資訊，確保回答的專業性。
                 2.  **提供在地生活資訊**：如果問題與知識庫無關，再根據社區的地理位置「台灣台北市中山區松江路252巷10號」，提供周邊生活資訊。
                 3.  **使用指定語言**：所有回答都必須使用「${outputLanguage}」。
+                4.  **專業且有條理**：回答時請保持禮貌和專業，如有需要，可以將資訊分點條列，讓住戶更容易閱讀。
 
                 # 社區專屬知識庫:
                 ${communityKnowledgeBase}
