@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>社區知識庫管理後台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; }
+    textarea { font-family: 'monospace'; }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="max-w-4xl mx-auto p-6 bg-white shadow-lg mt-10 rounded-lg">
+    <div class="text-center">
+      <h1 class="text-3xl font-bold text-gray-800">社區知識庫管理後台</h1>
+      <p class="text-gray-500 mt-2">在這裡更新的資訊，會即時同步給 AI 助理</p>
+    </div>
+
+    <div id="statusMessage" class="mt-4 text-center h-6"></div>
+
+    <div class="mt-6">
+      <label for="knowledgeBaseInput" class="block text-lg font-medium text-gray-700">社區資訊內容 (支援 Markdown 格式)</label>
+      <textarea id="knowledgeBaseInput" rows="20" class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-4 text-sm leading-6"></textarea>
+      <p class="mt-2 text-sm text-gray-500">提示：您可以使用 `#`、`**文字**`、`-` 等 Markdown 語法來美化格式。</p>
+    </div>
+
+    <div class="mt-6 text-right">
+      <button id="saveBtn" class="py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400">
+        儲存更新
+      </button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- 設定 ---
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    let firebaseConfig;
+    let useTokenAuth = false;
+
+    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        firebaseConfig = JSON.parse(__firebase_config);
+        useTokenAuth = true;
+    } else {
+        console.warn("未偵測到 Firebase 環境設定，將使用備用設定。");
+        firebaseConfig = {
+            apiKey: "AIzaSyDeRHsloR1iY0_bzpYbPzdCiBljGfck98k",
+            authDomain: "jy-2025.firebaseapp.com",
+            projectId: "jy-2025",
+            storageBucket: "jy-2025.appspot.com",
+            messagingSenderId: "640527461851",
+            appId: "1:640527461851:web:eed9f82d698275371fcbfe",
+            measurementId: "G-HVEVMTSR9L"
+        };
+    }
+    
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    // Define a specific path for the knowledge base document
+    const knowledgeBasePath = `/artifacts/${appId}/public/data/community_info`;
+    const knowledgeBaseDocId = 'knowledge_base';
+
+    // --- DOM 元素 ---
+    const knowledgeBaseInput = document.getElementById('knowledgeBaseInput');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusMessage = document.getElementById('statusMessage');
+
+    // --- 全域變數 ---
+    let db, auth, knowledgeBaseDocRef;
+
+    async function initializeFirebase() {
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        
+        knowledgeBaseDocRef = doc(db, knowledgeBasePath, knowledgeBaseDocId);
+
+        if (useTokenAuth && initialAuthToken) {
+          await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+          await signInAnonymously(auth);
+        }
+        
+        loadKnowledgeBase();
+      } catch (e) {
+        console.error("Firebase 初始化失敗:", e);
+        showStatus("無法連接至伺服器。", 'error');
+      }
+    }
+
+    function showStatus(message, type = 'info') {
+        statusMessage.textContent = message;
+        if (type === 'error') {
+            statusMessage.className = 'mt-4 text-center h-6 text-red-600';
+        } else if (type === 'success') {
+            statusMessage.className = 'mt-4 text-center h-6 text-green-600';
+        } else {
+            statusMessage.className = 'mt-4 text-center h-6 text-gray-500';
+        }
+        if (type === 'success') {
+            setTimeout(() => showStatus(''), 3000);
+        }
+    }
+
+    async function loadKnowledgeBase() {
+        showStatus("正在從資料庫載入資料...");
+        saveBtn.disabled = true;
+        try {
+            const docSnap = await getDoc(knowledgeBaseDocRef);
+            if (docSnap.exists()) {
+                knowledgeBaseInput.value = docSnap.data().content;
+                showStatus("資料載入成功！", 'success');
+            } else {
+                showStatus("尚未建立知識庫，請輸入內容後儲存。");
+            }
+        } catch (error) {
+            console.error("載入知識庫失敗:", error);
+            showStatus("載入知識庫失敗，請檢查網路連線。", 'error');
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+
+    async function saveKnowledgeBase() {
+        const content = knowledgeBaseInput.value;
+        showStatus("正在儲存更新...");
+        saveBtn.disabled = true;
+        try {
+            await setDoc(knowledgeBaseDocRef, { content: content });
+            showStatus("知識庫已成功更新！", 'success');
+        } catch (error) {
+            console.error("儲存知識庫失敗:", error);
+            showStatus("儲存失敗，請重試。", 'error');
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+
+    saveBtn.addEventListener('click', saveKnowledgeBase);
+    initializeFirebase();
+  </script>
+</body>
+</html>
