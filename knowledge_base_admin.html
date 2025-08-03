@@ -16,10 +16,16 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
+    .fa-spinner {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body class="bg-gray-100">
-  <div class="max-w-4xl mx-auto p-6 bg-white shadow-lg mt-10 rounded-lg">
+  <div class="max-w-4xl mx-auto p-6 bg-white shadow-lg mt-10 mb-10 rounded-lg">
     <div class="text-center">
       <h1 class="text-3xl font-bold text-gray-800">社區知識庫管理後台</h1>
       <p class="text-gray-500 mt-2">在這裡更新的資訊，會即時同步給 AI 助理</p>
@@ -41,8 +47,18 @@
 
     <div class="mt-10 border-t pt-6">
         <h2 class="text-2xl font-bold text-gray-700 mb-4">歷史版本</h2>
-        <div id="historyList" class="space-y-4">
-            <!-- History versions will be rendered here -->
+        <div id="historyList" class="space-y-4"></div>
+    </div>
+
+    <div class="mt-10 border-t pt-6">
+        <h2 class="text-2xl font-bold text-gray-700 mb-4">自定義快速建議按鈕</h2>
+        <div id="suggestionsAdmin" class="space-y-6">
+            <!-- Suggestion admin fields will be rendered here -->
+        </div>
+        <div class="mt-6 text-right">
+            <button id="saveSuggestionsBtn" class="py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400">
+                儲存建議按鈕
+            </button>
         </div>
     </div>
 
@@ -51,9 +67,11 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- 設定 ---
+    const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
+
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     let firebaseConfig;
     let useTokenAuth = false;
@@ -76,12 +94,15 @@
     
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     const versionsPath = `/artifacts/${appId}/public/data/knowledge_base_versions`;
+    const suggestionsDocPath = `/artifacts/${appId}/public/data/community_info/suggestions_config`;
 
     // --- DOM 元素 ---
     const knowledgeBaseInput = document.getElementById('knowledgeBaseInput');
     const saveBtn = document.getElementById('saveBtn');
     const statusMessage = document.getElementById('statusMessage');
     const historyList = document.getElementById('historyList');
+    const suggestionsAdmin = document.getElementById('suggestionsAdmin');
+    const saveSuggestionsBtn = document.getElementById('saveSuggestionsBtn');
 
     // --- 全域變數 ---
     let db, auth;
@@ -99,6 +120,7 @@
         }
         
         setupRealtimeListener();
+        loadSuggestions();
       } catch (e) {
         console.error("Firebase 初始化失敗:", e);
         showStatus("無法連接至伺服器。", 'error');
@@ -126,7 +148,7 @@
             const versions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             
             if (versions.length > 0) {
-                knowledgeBaseInput.value = versions[0].content; // Load the latest version into editor
+                knowledgeBaseInput.value = versions[0].content;
                 renderHistoryList(versions);
                 showStatus("資料載入成功！", 'success');
             } else {
@@ -138,7 +160,6 @@
         }, (error) => {
             console.error("載入知識庫失敗:", error);
             showStatus("載入知識庫失敗，請檢查網路連線或權限設定。", 'error');
-            saveBtn.disabled = false;
         });
     }
 
@@ -147,9 +168,7 @@
         versions.forEach((version, index) => {
             const card = document.createElement('div');
             card.className = 'version-card bg-white border border-gray-200 p-4 rounded-lg flex justify-between items-center';
-            
             const timestamp = version.timestamp ? version.timestamp.toDate().toLocaleString('zh-TW') : 'N/A';
-            
             const cleanContent = version.content.replace(/#+\s/g, '').replace(/:\w+:\w+:\d+]/g, '');
             const contentPreview = cleanContent.substring(0, 80).replace(/\n/g, ' ') + '...';
 
@@ -194,15 +213,12 @@
         showStatus("正在發布新版本...");
         saveBtn.disabled = true;
         try {
-            const versionsCollectionRef = collection(db, versionsPath);
-            await addDoc(versionsCollectionRef, {
+            await addDoc(collection(db, versionsPath), {
                 content: content,
                 timestamp: serverTimestamp()
             });
-            // The onSnapshot listener will automatically refresh the view
             showStatus("新版本已成功發布！", 'success');
         } catch (error) {
-            console.error("發布新版本失敗:", error);
             showStatus("發布失敗，請重試。", 'error');
         } finally {
             saveBtn.disabled = false;
@@ -213,15 +229,158 @@
         showStatus("正在刪除版本...");
         try {
             await deleteDoc(doc(db, versionsPath, id));
-            // The onSnapshot listener will automatically refresh the view
             showStatus("版本已刪除。", 'success');
         } catch (error) {
-            console.error("刪除版本失敗:", error);
             showStatus("刪除失敗，請重試。", 'error');
+        }
+    }
+    
+    // --- Suggestions Management ---
+    
+    function renderSuggestionsAdmin(suggestions = []) {
+        suggestionsAdmin.innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+            const suggestion = suggestions[i] || { zh: { text: '', query: '' }, ja: { text: '', query: '' } };
+            const section = document.createElement('div');
+            section.className = 'p-4 border rounded-lg bg-gray-50';
+            section.innerHTML = `
+                <h3 class="font-bold text-lg mb-4 flex justify-between items-center">
+                    <span>按鈕 ${i + 1}</span>
+                    <button class="translate-btn text-sm py-1 px-3 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors" data-index="${i}">
+                        <i class="fas fa-language mr-1"></i> 將中文翻譯至日文
+                    </button>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">按鈕文字 (中文)</label>
+                        <input type="text" id="zh-text-${i}" value="${suggestion.zh.text}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">發送問題 (中文)</label>
+                        <input type="text" id="zh-query-${i}" value="${suggestion.zh.query}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">按鈕文字 (日文)</label>
+                        <input type="text" id="ja-text-${i}" value="${suggestion.ja.text}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">發送問題 (日文)</label>
+                        <input type="text" id="ja-query-${i}" value="${suggestion.ja.query}" class="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                </div>
+            `;
+            suggestionsAdmin.appendChild(section);
+        }
+        
+        // Add event listeners to the new translate buttons
+        document.querySelectorAll('.translate-btn').forEach(btn => {
+            btn.addEventListener('click', handleTranslation);
+        });
+    }
+
+    async function loadSuggestions() {
+        saveSuggestionsBtn.disabled = true;
+        try {
+            const docRef = doc(db, suggestionsDocPath);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                renderSuggestionsAdmin(docSnap.data().suggestions);
+            } else {
+                renderSuggestionsAdmin(); // Render with empty fields
+            }
+        } catch (error) {
+            console.error("載入建議按鈕失敗:", error);
+            showStatus("載入建議按鈕失敗。", 'error');
+        } finally {
+            saveSuggestionsBtn.disabled = false;
+        }
+    }
+
+    async function saveSuggestions() {
+        showStatus("正在儲存建議按鈕...");
+        saveSuggestionsBtn.disabled = true;
+        const suggestions = [];
+        for (let i = 0; i < 4; i++) {
+            suggestions.push({
+                zh: {
+                    text: document.getElementById(`zh-text-${i}`).value,
+                    query: document.getElementById(`zh-query-${i}`).value
+                },
+                ja: {
+                    text: document.getElementById(`ja-text-${i}`).value,
+                    query: document.getElementById(`ja-query-${i}`).value
+                }
+            });
+        }
+        
+        try {
+            const docRef = doc(db, suggestionsDocPath);
+            await setDoc(docRef, { suggestions });
+            showStatus("建議按鈕已成功更新！", 'success');
+        } catch (error) {
+            console.error("儲存建議按鈕失敗:", error);
+            showStatus("儲存建議按鈕失敗。", 'error');
+        } finally {
+            saveSuggestionsBtn.disabled = false;
+        }
+    }
+
+    // --- AI Translation Function ---
+    async function translateText(text) {
+        const apiKey = USER_PROVIDED_API_KEY || firebaseConfig.apiKey;
+        if (!text || !apiKey) return text;
+
+        try {
+            const prompt = `Translate the following Chinese (Traditional) text to Japanese. Only return the translated text, without any explanation or extra characters. Text to translate: "${text}"`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+            const result = await response.json();
+            return result.candidates[0].content.parts[0].text.trim();
+        } catch (error) {
+            console.error('Translation failed:', error);
+            showStatus(`翻譯失敗: ${error.message}`, 'error');
+            return ''; // Return empty on error to avoid filling with wrong text
+        }
+    }
+
+    async function handleTranslation(event) {
+        const btn = event.currentTarget;
+        const index = btn.dataset.index;
+        
+        const zhTextInput = document.getElementById(`zh-text-${index}`);
+        const zhQueryInput = document.getElementById(`zh-query-${index}`);
+        const jaTextInput = document.getElementById(`ja-text-${index}`);
+        const jaQueryInput = document.getElementById(`ja-query-${index}`);
+
+        const originalButtonHTML = btn.innerHTML;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> 翻譯中...`;
+        btn.disabled = true;
+
+        try {
+            const [translatedText, translatedQuery] = await Promise.all([
+                translateText(zhTextInput.value),
+                translateText(zhQueryInput.value)
+            ]);
+            
+            jaTextInput.value = translatedText;
+            jaQueryInput.value = translatedQuery;
+            showStatus('翻譯完成！', 'success');
+        } catch (error) {
+            // Error is already shown in translateText function
+        } finally {
+            btn.innerHTML = originalButtonHTML;
+            btn.disabled = false;
         }
     }
 
     saveBtn.addEventListener('click', saveNewVersion);
+    saveSuggestionsBtn.addEventListener('click', saveSuggestions);
     initializeFirebase();
   </script>
 </body>
