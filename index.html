@@ -6,10 +6,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    /* 用於讀取中動畫的 Spinner */
+    .spinner {
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* AI 回覆訊息的樣式 */
+    .ai-bubble-content {
+      white-space: pre-wrap; /* 讓換行符號正常顯示 */
+    }
+    /* 回饋按鈕區塊 */
+    .feedback-container {
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #e5e7eb; /* 分隔線 */
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .feedback-btn {
+      background-color: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 9999px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .feedback-btn:hover {
+      background-color: #e5e7eb;
+      transform: scale(1.05);
+    }
+    /* 按鈕被點擊後的高亮樣式 */
+    .feedback-btn.selected {
+      background-color: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+    /* 讓回饋按鈕區塊不能再被點擊 */
+    .feedback-container.disabled .feedback-btn {
+        pointer-events: none;
+        opacity: 0.7;
+    }
+  </style>
 </head>
-<body class="antialiased">
+<body class="antialiased font-sans">
   <div class="max-w-md mx-auto bg-white flex flex-col h-screen">
+    <!-- 頁首 -->
     <div class="bg-white p-4 shadow-sm sticky top-0 z-10">
       <div class="flex justify-between items-center">
         <h1 id="header-title" class="text-xl font-bold text-gray-800">佳元松江社區經理助手</h1>
@@ -20,15 +67,20 @@
       </div>
     </div>
 
+    <!-- 聊天視窗 -->
     <div id="chat-container" class="flex-grow p-4 overflow-y-auto bg-gray-50">
-      </div>
+      <!-- 訊息會顯示在這裡 -->
+    </div>
 
+    <!-- 建議問題 -->
     <div id="suggestions" class="p-3 border-t bg-white">
         <p id="suggestions-title" class="text-xs text-gray-500 mb-2 text-center">試試看問我：</p>
         <div id="suggestion-buttons" class="grid grid-cols-2 gap-2">
-            </div>
+            <!-- 建議問題按鈕會顯示在這裡 -->
+        </div>
     </div>
 
+    <!-- 輸入框 -->
     <div class="p-3 bg-white border-t">
       <div class="flex items-center space-x-3">
         <input type="text" id="userInput" class="flex-grow block w-full rounded-full border-gray-200 bg-gray-100 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 p-3" placeholder="在這裡輸入您的問題...">
@@ -45,12 +97,13 @@
   </div>
 
   <script type="module">
+    // --- Firebase 模組 ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, query, orderBy, limit, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, query, orderBy, limit, getDocs, doc, getDoc, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- 設定 ---
-    const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
+    const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU"; // 請替換成您的 Gemini API 金鑰
     
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     let firebaseConfig;
@@ -75,6 +128,8 @@
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     const versionsPath = `/artifacts/${appId}/public/data/knowledge_base_versions`;
     const suggestionsDocPath = `/artifacts/${appId}/public/data/community_info/suggestions_config`;
+    // **新增**: 使用記錄的 Firestore 路徑
+    const usageLogsPath = `/artifacts/${appId}/public/data/usage_logs`;
     
     // --- DOM 元素 ---
     const chatContainer = document.getElementById('chat-container');
@@ -99,14 +154,18 @@
             welcomeMessage: '您好！我是佳元松江社區經理助手，請問有什麼可以為您服務的嗎？您可以問我關於社區規定、公共設施或周邊生活機能的任何問題喔！',
             inputPlaceholder: '向您的AI經理助手提問...',
             suggestionsTitle: '試試看問我：',
-            thinking: '經理助手正在為您查詢...'
+            thinking: '經理助手正在為您查詢...',
+            feedbackHelpful: '有幫助',
+            feedbackUnhelpful: '沒幫助'
         },
         'ja-JP': {
             headerTitle: '佳元松江コミュニティライフAIアシスタント',
             welcomeMessage: 'こんにちは！私は佳元松江コミュニティのAIアシスタントです。何かお手伝いできることはありますか？コミュニティのルール、公共施設、または周辺の生活施設について何でも聞いてください！',
             inputPlaceholder: 'AIアシスタントに質問する...',
             suggestionsTitle: '例えば、こんな質問ができます：',
-            thinking: 'AIアシスタントが検索中です...'
+            thinking: 'AIアシスタントが検索中です...',
+            feedbackHelpful: '役に立った',
+            feedbackUnhelpful: '役に立たなかった'
         }
     };
 
@@ -124,7 +183,7 @@
           await signInAnonymously(auth);
         }
         await Promise.all([loadKnowledgeBase(), loadSuggestions()]);
-        updateUIForLanguage(); // Update suggestions after loading
+        updateUIForLanguage();
       } catch (e) {
         console.error("Firebase 初始化失敗:", e);
         addMessage("抱歉，無法連接到助理的大腦，請稍後再試。", 'ai');
@@ -153,7 +212,6 @@
             if (docSnap.exists() && docSnap.data().suggestions) {
                 suggestionsConfig = docSnap.data().suggestions;
             } else {
-                // Fallback default suggestions
                 suggestionsConfig = [
                     { zh: { text: '附近有什麼好吃的？', query: '請推薦社區附近的美食' }, ja: { text: '近くに美味しいものはありますか？', query: 'コミュニティの近くでおすすめの食べ物を教えてください' } },
                     { zh: { text: '最近的生活設施？', query: '最近的超市或便利商店在哪' }, ja: { text: '最寄りの生活施設は？', query: '最寄りのスーパーやコンビニはどこですか' } },
@@ -185,7 +243,6 @@
             langTwBtn.classList.replace('text-white', 'text-gray-600');
         }
         
-        // Render suggestion buttons
         suggestionButtonsContainer.innerHTML = '';
         const langKey = currentLang === 'zh-TW' ? 'zh' : 'ja';
         suggestionsConfig.forEach(config => {
@@ -202,37 +259,81 @@
         });
     }
 
-    function addMessage(text, sender) {
+    function addMessage(text, sender, logId = null) {
         const bubble = document.createElement('div');
         bubble.classList.add('chat-bubble', 'mb-4', 'max-w-[85%]', 'p-4', 'rounded-2xl', 'shadow-sm');
+        
+        const content = document.createElement('div');
+        content.className = 'ai-bubble-content';
+
         if (sender === 'user') {
             bubble.classList.add('bg-blue-600', 'text-white', 'ml-auto', 'rounded-br-lg');
-            bubble.textContent = text;
+            content.textContent = text;
         } else {
-            bubble.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'rounded-bl-lg');
-            bubble.innerHTML = text.replace(/\n/g, '<br>');
+            bubble.classList.add('bg-white', 'text-gray-800', 'mr-auto', 'rounded-bl-lg', 'border', 'border-gray-200');
+            content.innerHTML = text.replace(/\n/g, '<br>');
         }
+        
+        bubble.appendChild(content);
+
+        // **修改**: 如果是 AI 訊息且有 logId，就加上回饋按鈕
+        if (sender === 'ai' && logId) {
+            const feedbackContainer = createFeedbackButtons(logId);
+            bubble.appendChild(feedbackContainer);
+        }
+
         chatContainer.appendChild(bubble);
         chatContainer.scrollTop = chatContainer.scrollHeight;
         return bubble;
     }
 
-    function updateMessage(bubble, newText) {
-        bubble.innerHTML = newText.replace(/\n/g, '<br>');
+    function updateMessage(bubble, newText, logId = null) {
+        const content = bubble.querySelector('.ai-bubble-content');
+        content.innerHTML = newText.replace(/\n/g, '<br>');
+
+        // **修改**: 更新訊息時也加上回饋按鈕
+        if (logId) {
+            // 避免重複添加
+            const existingFeedback = bubble.querySelector('.feedback-container');
+            if (existingFeedback) existingFeedback.remove();
+            
+            const feedbackContainer = createFeedbackButtons(logId);
+            bubble.appendChild(feedbackContainer);
+        }
+    }
+
+    // **新增**: 建立回饋按鈕的函式
+    function createFeedbackButtons(logId) {
+        const container = document.createElement('div');
+        container.className = 'feedback-container';
+
+        const t = translations[currentLang];
+
+        const helpfulBtn = document.createElement('button');
+        helpfulBtn.className = 'feedback-btn';
+        helpfulBtn.textContent = t.feedbackHelpful;
+        helpfulBtn.dataset.logId = logId;
+        helpfulBtn.dataset.feedback = 'helpful';
+        helpfulBtn.innerHTML = `<i class="fa-regular fa-thumbs-up mr-1"></i> ${t.feedbackHelpful}`;
+
+
+        const unhelpfulBtn = document.createElement('button');
+        unhelpfulBtn.className = 'feedback-btn';
+        unhelpfulBtn.textContent = t.feedbackUnhelpful;
+        unhelpfulBtn.dataset.logId = logId;
+        unhelpfulBtn.dataset.feedback = 'unhelpful';
+        unhelpfulBtn.innerHTML = `<i class="fa-regular fa-thumbs-down mr-1"></i> ${t.feedbackUnhelpful}`;
+
+        container.appendChild(helpfulBtn);
+        container.appendChild(unhelpfulBtn);
+        return container;
     }
 
     function toggleLoading(isLoading) {
-        if (isLoading) {
-            sendIcon.classList.add('hidden');
-            loadingSpinner.classList.remove('hidden');
-            sendBtn.disabled = true;
-            userInput.disabled = true;
-        } else {
-            sendIcon.classList.remove('hidden');
-            loadingSpinner.classList.add('hidden');
-            sendBtn.disabled = false;
-            userInput.disabled = false;
-        }
+        sendIcon.classList.toggle('hidden', isLoading);
+        loadingSpinner.classList.toggle('hidden', !isLoading);
+        sendBtn.disabled = isLoading;
+        userInput.disabled = isLoading;
     }
 
     async function handleSendMessage() {
@@ -245,11 +346,11 @@
         
         const thinkingBubble = addMessage(translations[currentLang].thinking, 'ai');
 
+        let logId = null; // 初始化 logId
+
         try {
             const apiKey = USER_PROVIDED_API_KEY;
-            if (!apiKey) {
-                throw new Error("API 金鑰未設定。");
-            }
+            if (!apiKey) throw new Error("API 金鑰未設定。");
 
             const languageMap = { 'zh-TW': '繁體中文', 'ja-JP': '日本語' };
             const outputLanguage = languageMap[currentLang];
@@ -272,10 +373,7 @@
                 「${userText}」
             `;
 
-            const payload = {
-              contents: [{ role: "user", parts: [{ text: prompt }] }]
-            };
-            
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             
             const response = await fetch(apiUrl, {
@@ -291,23 +389,75 @@
 
             const result = await response.json();
             const aiResponse = result.candidates[0].content.parts[0].text;
-            updateMessage(thinkingBubble, aiResponse);
+            
+            // **新增**: 記錄成功的查詢
+            const logRef = await addDoc(collection(db, usageLogsPath), {
+                userId: auth.currentUser?.uid || 'anonymous',
+                query: userText,
+                response: aiResponse,
+                language: currentLang,
+                status: 'success',
+                satisfaction: 'not_rated',
+                timestamp: serverTimestamp()
+            });
+            logId = logRef.id;
+
+            updateMessage(thinkingBubble, aiResponse, logId);
 
         } catch (error) {
             console.error('AI 請求錯誤:', error);
             const errorMessage = currentLang === 'ja-JP' ? '申し訳ありませんが、エラーが発生しました。もう一度お試しください。' : '抱歉，發生錯誤，請再試一次。';
+            
+            // **新增**: 記錄失敗的查詢
+            await addDoc(collection(db, usageLogsPath), {
+                userId: auth.currentUser?.uid || 'anonymous',
+                query: userText,
+                response: error.toString(),
+                language: currentLang,
+                status: 'error',
+                satisfaction: 'not_rated',
+                timestamp: serverTimestamp()
+            });
+
             updateMessage(thinkingBubble, errorMessage);
         } finally {
             toggleLoading(false);
         }
     }
 
+    // **新增**: 處理回饋按鈕點擊的函式
+    async function handleFeedbackClick(e) {
+        const button = e.target.closest('.feedback-btn');
+        if (!button) return;
+
+        const { logId, feedback } = button.dataset;
+        if (!logId) return;
+
+        try {
+            const logRef = doc(db, usageLogsPath, logId);
+            await updateDoc(logRef, {
+                satisfaction: feedback
+            });
+
+            // 更新 UI
+            const container = button.parentElement;
+            container.classList.add('disabled'); // 讓按鈕區塊失效
+            
+            // 移除其他按鈕的 selected class
+            container.querySelectorAll('.feedback-btn').forEach(btn => btn.classList.remove('selected'));
+            // 將被點擊的按鈕設為 selected
+            button.classList.add('selected');
+
+        } catch (error) {
+            console.error("更新回饋失敗:", error);
+        }
+    }
+
+
     // --- 事件監聽 ---
     sendBtn.addEventListener('click', handleSendMessage);
     userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleSendMessage();
-        }
+        if (e.key === 'Enter') handleSendMessage();
     });
 
     langTwBtn.addEventListener('click', () => {
@@ -328,9 +478,12 @@
         }
     });
     
+    // **新增**: 為聊天視窗加上事件代理，監聽回饋按鈕
+    chatContainer.addEventListener('click', handleFeedbackClick);
+
     // --- 初始化 ---
     async function init() {
-        updateUIForLanguage(); // Initial UI text
+        updateUIForLanguage();
         addMessage(translations[currentLang].welcomeMessage, 'ai');
         await initializeFirebase();
     }
