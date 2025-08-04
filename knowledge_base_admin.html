@@ -6,36 +6,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; }
+    textarea { font-family: 'monospace'; }
+    .version-card, .log-card {
+        transition: all 0.2s ease-in-out;
+    }
+    .version-card:hover, .log-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .fa-spinner {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* 讓 modal 置中 */
+    .modal {
+        display: none; /* 預設隱藏 */
+    }
+    .modal.active {
+        display: flex;
+    }
+  </style>
 </head>
 <body class="bg-gray-50">
-  <div class="max-w-4xl mx-auto p-8 bg-white shadow-xl mt-12 mb-12 rounded-2xl">
+  <div class="max-w-6xl mx-auto p-4 sm:p-8 bg-white shadow-xl mt-12 mb-12 rounded-2xl">
     <div class="text-center">
-      <h1 class="text-4xl font-extrabold text-gray-800">社區知識庫管理後台</h1>
-      <p class="text-gray-500 mt-2 text-lg">在這裡更新的資訊，會即時同步給 AI 助理</p>
+      <h1 class="text-4xl font-extrabold text-gray-800">社區 AI 助理儀表板</h1>
+      <p class="text-gray-500 mt-2 text-lg">一站式管理知識庫、建議按鈕並分析使用數據</p>
     </div>
 
     <div id="statusMessage" class="mt-6 text-center h-8 text-sm"></div>
 
-    <div class="mt-8 p-6 bg-blue-50 rounded-xl">
-      <label for="knowledgeBaseInput" class="block text-xl font-bold text-gray-700">編輯區 (目前顯示為最新版本)</label>
-      <textarea id="knowledgeBaseInput" rows="15" class="mt-3 block w-full rounded-xl border-blue-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-4 text-sm leading-relaxed"></textarea>
-      <p class="mt-2 text-sm text-gray-500">提示：您可以使用 `#`、`**文字**`、`-` 等 Markdown 語法來美化格式。</p>
+    <!-- 數據分析儀表板 -->
+    <div class="mt-12 border-t pt-8">
+        <h2 class="text-3xl font-bold text-gray-700 mb-6">使用數據分析</h2>
+        <!-- 統計數據卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-blue-50 p-6 rounded-2xl text-center shadow-sm">
+                <p class="text-lg font-semibold text-blue-800">總查詢次數</p>
+                <p id="total-queries" class="text-4xl font-extrabold text-blue-600 mt-2">0</p>
+            </div>
+            <div class="bg-green-50 p-6 rounded-2xl text-center shadow-sm">
+                <p class="text-lg font-semibold text-green-800">有幫助的回饋</p>
+                <p id="helpful-feedback" class="text-4xl font-extrabold text-green-600 mt-2">0</p>
+            </div>
+            <div class="bg-red-50 p-6 rounded-2xl text-center shadow-sm">
+                <p class="text-lg font-semibold text-red-800">沒幫助的回饋</p>
+                <p id="unhelpful-feedback" class="text-4xl font-extrabold text-red-600 mt-2">0</p>
+            </div>
+        </div>
+        <!-- 查詢記錄列表 -->
+        <h3 class="text-2xl font-bold text-gray-700 mb-4">最新查詢記錄</h3>
+        <div id="logsList" class="space-y-4">
+            <!-- 查詢記錄會顯示在這裡 -->
+        </div>
     </div>
 
-    <div class="mt-6 text-right">
-      <button id="saveBtn" class="py-3 px-8 border border-transparent rounded-full shadow-lg text-base font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:-translate-y-1 disabled:bg-gray-400 disabled:transform-none">
-        發布新版本
-      </button>
+
+    <div class="mt-12 border-t pt-8">
+      <h2 class="text-3xl font-bold text-gray-700 mb-6">知識庫管理</h2>
+      <div class=" p-6 bg-blue-50 rounded-xl">
+        <label for="knowledgeBaseInput" class="block text-xl font-bold text-gray-700">編輯區 (目前顯示為最新版本)</label>
+        <textarea id="knowledgeBaseInput" rows="15" class="mt-3 block w-full rounded-xl border-blue-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-4 text-sm leading-relaxed"></textarea>
+        <p class="mt-2 text-sm text-gray-500">提示：您可以使用 `#`、`**文字**`、`-` 等 Markdown 語法來美化格式。</p>
+      </div>
+      <div class="mt-6 text-right">
+        <button id="saveBtn" class="py-3 px-8 border border-transparent rounded-full shadow-lg text-base font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:-translate-y-1 disabled:bg-gray-400 disabled:transform-none">
+          發布新版本
+        </button>
+      </div>
+      <div class="mt-8">
+          <h3 class="text-2xl font-bold text-gray-700 mb-6">歷史版本</h3>
+          <div id="historyList" class="space-y-4"></div>
+      </div>
     </div>
 
     <div class="mt-12 border-t pt-8">
-        <h2 class="text-2xl font-bold text-gray-700 mb-6">歷史版本</h2>
-        <div id="historyList" class="space-y-4"></div>
-    </div>
-
-    <div class="mt-12 border-t pt-8">
-        <h2 class="text-2xl font-bold text-gray-700 mb-6">自定義快速建議按鈕</h2>
+        <h2 class="text-3xl font-bold text-gray-700 mb-6">自定義快速建議按鈕</h2>
         <div id="suggestionsAdmin" class="space-y-6">
             <!-- Suggestion admin fields will be rendered here -->
         </div>
@@ -47,14 +97,26 @@
     </div>
   </div>
 
+  <!-- Modal 用於顯示完整 AI 回覆 -->
+  <div id="responseModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+          <div class="p-4 border-b flex justify-between items-center">
+              <h3 class="text-lg font-bold">完整 AI 回覆</h3>
+              <button id="closeModalBtn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+          </div>
+          <div id="modalContent" class="p-6 overflow-y-auto" style="white-space: pre-wrap;"></div>
+      </div>
+  </div>
+
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc, setDoc, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- 設定 ---
     const USER_PROVIDED_API_KEY = "AIzaSyCspWUkVA6STWgjrLeXVgg5JnWnJWTKAtU";
-    const SUGGESTION_BUTTONS_COUNT = 4; // 可在此調整建議按鈕的數量
+    const SUGGESTION_BUTTONS_COUNT = 4;
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     let firebaseConfig;
@@ -79,6 +141,7 @@
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     const versionsPath = `/artifacts/${appId}/public/data/knowledge_base_versions`;
     const suggestionsDocPath = `/artifacts/${appId}/public/data/community_info/suggestions_config`;
+    const usageLogsPath = `/artifacts/${appId}/public/data/usage_logs`;
 
     // --- DOM 元素 ---
     const knowledgeBaseInput = document.getElementById('knowledgeBaseInput');
@@ -87,6 +150,14 @@
     const historyList = document.getElementById('historyList');
     const suggestionsAdmin = document.getElementById('suggestionsAdmin');
     const saveSuggestionsBtn = document.getElementById('saveSuggestionsBtn');
+    const totalQueriesEl = document.getElementById('total-queries');
+    const helpfulFeedbackEl = document.getElementById('helpful-feedback');
+    const unhelpfulFeedbackEl = document.getElementById('unhelpful-feedback');
+    const logsListEl = document.getElementById('logsList');
+    const responseModal = document.getElementById('responseModal');
+    const modalContent = document.getElementById('modalContent');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+
 
     // --- 全域變數 ---
     let db, auth;
@@ -103,8 +174,10 @@
           await signInAnonymously(auth);
         }
         
-        setupRealtimeListener();
+        setupKnowledgeBaseListener();
         loadSuggestions();
+        setupUsageLogListener();
+
       } catch (e) {
         console.error("Firebase 初始化失敗:", e);
         showStatus("無法連接至伺服器。", 'error');
@@ -112,21 +185,21 @@
     }
 
     function showStatus(message, type = 'info') {
-        const statusElement = document.getElementById('statusMessage');
-        statusElement.innerHTML = message;
-        statusElement.className = `mt-6 text-center h-8 text-sm flex items-center justify-center rounded-lg ${
+        statusMessage.innerHTML = message;
+        statusMessage.className = `mt-6 text-center h-8 text-sm flex items-center justify-center rounded-lg ${
             type === 'error' ? 'bg-red-100 text-red-700' :
             type === 'success' ? 'bg-green-100 text-green-700' : 'text-gray-500'
         }`;
         if (type === 'success') {
             setTimeout(() => {
-                statusElement.innerHTML = '';
-                statusElement.className = `mt-6 text-center h-8`;
+                statusMessage.innerHTML = '';
+                statusMessage.className = `mt-6 text-center h-8`;
             }, 3000);
         }
     }
 
-    function setupRealtimeListener() {
+    // --- 知識庫管理 ---
+    function setupKnowledgeBaseListener() {
         showStatus(`<i class="fas fa-spinner fa-spin mr-2"></i>正在從資料庫載入資料...`);
         saveBtn.disabled = true;
         const versionsCollectionRef = collection(db, versionsPath);
@@ -138,7 +211,6 @@
             if (versions.length > 0) {
                 knowledgeBaseInput.value = versions[0].content;
                 renderHistoryList(versions);
-                showStatus("資料載入成功！", 'success');
             } else {
                 knowledgeBaseInput.value = `# 歡迎使用\n\n請在此輸入您的第一版社區資訊...`;
                 historyList.innerHTML = `<p class="text-gray-500 text-center">尚無歷史版本。</p>`;
@@ -173,22 +245,6 @@
                 </div>
             `;
             historyList.appendChild(card);
-        });
-
-        document.querySelectorAll('.load-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                knowledgeBaseInput.value = unescape(btn.dataset.content);
-                window.scrollTo(0, 0);
-                showStatus("舊版內容已載入編輯區，修改後可發布為新版本。");
-            });
-        });
-
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (confirm('您確定要永久刪除這個歷史版本嗎？此操作無法復原。')) {
-                    deleteVersion(btn.dataset.id);
-                }
-            });
         });
     }
 
@@ -225,8 +281,8 @@
         }
     }
     
-    // --- Suggestions Management ---
-    
+    // --- 建議按鈕管理 ---
+    // **修正**: 補上遺漏的函式實作
     function renderSuggestionsAdmin(suggestions = []) {
         suggestionsAdmin.innerHTML = '';
         for (let i = 0; i < SUGGESTION_BUTTONS_COUNT; i++) {
@@ -261,11 +317,6 @@
             `;
             suggestionsAdmin.appendChild(section);
         }
-        
-        // Add event listeners to the new translate buttons
-        document.querySelectorAll('.translate-btn').forEach(btn => {
-            btn.addEventListener('click', handleTranslation);
-        });
     }
 
     async function loadSuggestions() {
@@ -315,7 +366,7 @@
         }
     }
 
-    // --- AI Translation Function ---
+    // --- AI 翻譯功能 ---
     async function translateText(text) {
         const apiKey = USER_PROVIDED_API_KEY || firebaseConfig.apiKey;
         if (!text || !apiKey) return text;
@@ -372,8 +423,119 @@
         }
     }
 
+    // --- 數據分析功能 ---
+    function setupUsageLogListener() {
+        const logsCollectionRef = collection(db, usageLogsPath);
+        const q = query(logsCollectionRef, orderBy("timestamp", "desc"), limit(50));
+
+        onSnapshot(q, (snapshot) => {
+            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateStats(logs);
+            renderLogList(logs);
+            showStatus("儀表板數據已更新！", 'success');
+        }, (error) => {
+            console.error("載入使用記錄失敗:", error);
+            showStatus("載入使用記錄失敗。", 'error');
+            logsListEl.innerHTML = `<p class="text-red-500 text-center">無法載入查詢記錄。</p>`;
+        });
+    }
+
+    function updateStats(logs) {
+        const total = logs.length;
+        const helpful = logs.filter(log => log.satisfaction === 'helpful').length;
+        const unhelpful = logs.filter(log => log.satisfaction === 'unhelpful').length;
+
+        totalQueriesEl.textContent = total;
+        helpfulFeedbackEl.textContent = helpful;
+        unhelpfulFeedbackEl.textContent = unhelpful;
+    }
+
+    function renderLogList(logs) {
+        logsListEl.innerHTML = '';
+        if (logs.length === 0) {
+            logsListEl.innerHTML = `<p class="text-gray-500 text-center">尚無任何查詢記錄。</p>`;
+            return;
+        }
+
+        logs.forEach(log => {
+            const card = document.createElement('div');
+            card.className = 'log-card bg-white border border-gray-200 p-4 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-start';
+            
+            const timestamp = log.timestamp ? log.timestamp.toDate().toLocaleString('zh-TW') : 'N/A';
+            let feedbackIcon = '';
+            switch(log.satisfaction) {
+                case 'helpful':
+                    feedbackIcon = `<span class="flex items-center text-green-600"><i class="fas fa-thumbs-up mr-2"></i> 有幫助</span>`;
+                    break;
+                case 'unhelpful':
+                    feedbackIcon = `<span class="flex items-center text-red-600"><i class="fas fa-thumbs-down mr-2"></i> 沒幫助</span>`;
+                    break;
+                default:
+                    feedbackIcon = `<span class="flex items-center text-gray-500"><i class="fas fa-circle-notch mr-2"></i> 未回饋</span>`;
+            }
+
+            card.innerHTML = `
+                <div class="flex-grow">
+                    <p class="text-xs text-gray-500">${timestamp}</p>
+                    <p class="font-semibold text-gray-800 mt-2">問題：${log.query}</p>
+                    <div class="text-sm text-gray-600 mt-2">回饋：${feedbackIcon}</div>
+                </div>
+                <div class="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
+                    <button class="view-response-btn py-2 px-4 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg text-sm transition-colors" data-response="${escape(log.response)}">
+                        查看 AI 回覆
+                    </button>
+                </div>
+            `;
+            logsListEl.appendChild(card);
+        });
+    }
+
+    function openResponseModal(response) {
+        modalContent.textContent = unescape(response);
+        responseModal.classList.add('active');
+    }
+
+    function closeResponseModal() {
+        responseModal.classList.remove('active');
+    }
+
+    // --- 事件監聽 ---
     saveBtn.addEventListener('click', saveNewVersion);
     saveSuggestionsBtn.addEventListener('click', saveSuggestions);
+    closeModalBtn.addEventListener('click', closeResponseModal);
+    responseModal.addEventListener('click', (e) => {
+        if (e.target === responseModal) closeResponseModal();
+    });
+    logsListEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.view-response-btn');
+        if (btn) {
+            openResponseModal(btn.dataset.response);
+        }
+    });
+
+    historyList.addEventListener('click', (e) => {
+        const loadBtn = e.target.closest('.load-btn');
+        if (loadBtn) {
+            knowledgeBaseInput.value = unescape(loadBtn.dataset.content);
+            window.scrollTo(0, 0);
+            showStatus("舊版內容已載入編輯區，修改後可發布為新版本。");
+        }
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (deleteBtn) {
+            if (confirm('您確定要永久刪除這個歷史版本嗎？此操作無法復原。')) {
+                deleteVersion(deleteBtn.dataset.id);
+            }
+        }
+    });
+    suggestionsAdmin.addEventListener('click', (e) => {
+        const translateBtn = e.target.closest('.translate-btn');
+        if (translateBtn) {
+            handleTranslation(e);
+        }
+    });
+
+
+    // --- 初始化 ---
     initializeFirebase();
   </script>
 </body>
